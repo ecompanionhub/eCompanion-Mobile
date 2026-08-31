@@ -7,7 +7,7 @@
   <link rel="manifest" href="./manifest.webmanifest" />
   <title>eCompanion Body</title>
   <style>
-    :root{color-scheme:dark;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#0b0b0f;color:#f5f5f7}*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(circle at top,#1a1630 0,#0b0b0f 36%,#070709 100%)}main{max-width:760px;margin:0 auto;padding:calc(env(safe-area-inset-top) + 28px) 18px calc(env(safe-area-inset-bottom) + 32px)}h1{margin:0;font-size:32px;letter-spacing:-.03em}.sub{color:#a8a8b3;margin:8px 0 24px}.card{background:rgba(22,22,28,.78);border:1px solid rgba(255,255,255,.08);border-radius:22px;padding:18px;margin:14px 0;backdrop-filter:blur(16px)}label{display:block;font-size:13px;color:#b8b8c4;margin:12px 0 6px}input{width:100%;border:1px solid rgba(255,255,255,.1);background:#0d0d12;color:#fff;border-radius:13px;padding:13px 14px;font-size:16px}.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}button{border:0;border-radius:999px;padding:12px 16px;font-weight:700;background:#f4f4f7;color:#09090c}button.secondary{background:#25252d;color:#fff}.status{display:inline-flex;align-items:center;gap:8px;font-size:14px;color:#bdbdc8}.dot{width:9px;height:9px;border-radius:50%;background:#686873}.dot.ok{background:#73e6a3}.caps{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px}.cap{font-size:12px;padding:7px 9px;border-radius:999px;background:#202028;color:#cfcfda}.cap.on{background:#252d27;color:#abf2c3}pre{overflow:auto;white-space:pre-wrap;word-break:break-word;background:#09090d;border-radius:14px;padding:12px;color:#c7c7d2;min-height:72px}.micro{font-size:12px;color:#8e8e99;margin-top:10px}@media(max-width:520px){.row{grid-template-columns:1fr}}
+    :root{color-scheme:dark;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#0b0b0f;color:#f5f5f7}*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(circle at top,#1a1630 0,#0b0b0f 36%,#070709 100%)}main{max-width:760px;margin:0 auto;padding:calc(env(safe-area-inset-top) + 28px) 18px calc(env(safe-area-inset-bottom) + 32px)}h1{margin:0;font-size:32px;letter-spacing:-.03em}.sub{color:#a8a8b3;margin:8px 0 24px}.card{background:rgba(22,22,28,.78);border:1px solid rgba(255,255,255,.08);border-radius:22px;padding:18px;margin:14px 0;backdrop-filter:blur(16px)}label{display:block;font-size:13px;color:#b8b8c4;margin:12px 0 6px}input,textarea{width:100%;border:1px solid rgba(255,255,255,.1);background:#0d0d12;color:#fff;border-radius:13px;padding:13px 14px;font-size:16px}textarea{resize:none;min-height:48px;max-height:140px}.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}button{border:0;border-radius:999px;padding:12px 16px;font-weight:700;background:#f4f4f7;color:#09090c}button.secondary{background:#25252d;color:#fff}.status{display:inline-flex;align-items:center;gap:8px;font-size:14px;color:#bdbdc8}.dot{width:9px;height:9px;border-radius:50%;background:#686873}.dot.ok{background:#73e6a3}.caps{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px}.cap{font-size:12px;padding:7px 9px;border-radius:999px;background:#202028;color:#cfcfda}.cap.on{background:#252d27;color:#abf2c3}pre{overflow:auto;white-space:pre-wrap;word-break:break-word;background:#09090d;border-radius:14px;padding:12px;color:#c7c7d2;min-height:72px}.micro{font-size:12px;color:#8e8e99;margin-top:10px}.chat-head{display:flex;align-items:center;justify-content:space-between;gap:12px}.chat-name{font-size:20px;font-weight:800;letter-spacing:-.02em}.chat-meta{font-size:12px;color:#8e8e99;margin-top:3px}.messages{display:flex;flex-direction:column;gap:10px;min-height:220px;max-height:52vh;overflow:auto;padding:16px 2px}.bubble{max-width:84%;padding:11px 13px;border-radius:16px;line-height:1.42;white-space:pre-wrap;overflow-wrap:anywhere}.bubble.user{align-self:flex-end;background:#f4f4f7;color:#111116;border-bottom-right-radius:5px}.bubble.assistant{align-self:flex-start;background:#24242c;color:#f4f4f7;border-bottom-left-radius:5px}.bubble.system{align-self:center;background:#17171d;color:#9c9ca7;font-size:12px}.empty-chat{margin:auto;color:#777783;text-align:center;font-size:13px;line-height:1.5;padding:24px}.chat-form{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:9px}.chat-form button{min-height:48px}.debug-title{font-size:13px;color:#aaaab5}@media(max-width:520px){.row{grid-template-columns:1fr}.chat-form{grid-template-columns:1fr}.chat-form button{width:100%}}
   </style>
 </head>
 <body>
@@ -18,6 +18,21 @@
     <section class="card">
       <div class="status"><span id="statusDot" class="dot"></span><span id="statusText">Not paired</span></div>
       <div id="capabilities" class="caps"></div>
+    </section>
+
+    <section class="card">
+      <div class="chat-head">
+        <div>
+          <div id="chatTitle" class="chat-name">Companion</div>
+          <div id="chatMeta" class="chat-meta">Pair this body to start chatting.</div>
+        </div>
+        <button id="refreshChatBtn" class="secondary" type="button">Refresh</button>
+      </div>
+      <div id="messages" class="messages"><div class="empty-chat">No chat loaded.</div></div>
+      <form id="chatForm" class="chat-form">
+        <textarea id="chatInput" rows="1" maxlength="20000" autocomplete="off" placeholder="Message…"></textarea>
+        <button id="sendBtn" type="submit">Send</button>
+      </form>
     </section>
 
     <section class="card">
@@ -47,13 +62,13 @@
     </section>
 
     <section class="card">
-      <strong>Body identity</strong>
+      <strong class="debug-title">Body identity</strong>
       <pre id="bodyInfo"></pre>
     </section>
 
     <section class="card">
-      <strong>Runtime response</strong>
-      <pre id="output">Ready to pair.</pre>
+      <strong class="debug-title">Runtime response</strong>
+      <pre id="output">Ready.</pre>
     </section>
   </main>
   <script type="module" src="./app.js"></script>
