@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
+  <meta name="theme-color" content="#0b0b0f" />
+  <link rel="manifest" href="./manifest.webmanifest" />
+  <title>eCompanion Body</title>
+  <style>
+    :root{color-scheme:dark;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#0b0b0f;color:#f5f5f7}*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(circle at top,#1a1630 0,#0b0b0f 36%,#070709 100%)}main{max-width:760px;margin:0 auto;padding:calc(env(safe-area-inset-top) + 28px) 18px calc(env(safe-area-inset-bottom) + 32px)}h1{margin:0;font-size:32px;letter-spacing:-.03em}.sub{color:#a8a8b3;margin:8px 0 24px}.card{background:rgba(22,22,28,.78);border:1px solid rgba(255,255,255,.08);border-radius:22px;padding:18px;margin:14px 0;backdrop-filter:blur(16px)}label{display:block;font-size:13px;color:#b8b8c4;margin:12px 0 6px}input{width:100%;border:1px solid rgba(255,255,255,.1);background:#0d0d12;color:#fff;border-radius:13px;padding:13px 14px;font-size:16px}.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}button{border:0;border-radius:999px;padding:12px 16px;font-weight:700;background:#f4f4f7;color:#09090c}button.secondary{background:#25252d;color:#fff}.status{display:inline-flex;align-items:center;gap:8px;font-size:14px;color:#bdbdc8}.dot{width:9px;height:9px;border-radius:50%;background:#686873}.dot.ok{background:#73e6a3}.caps{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px}.cap{font-size:12px;padding:7px 9px;border-radius:999px;background:#202028;color:#cfcfda}.cap.on{background:#252d27;color:#abf2c3}pre{overflow:auto;white-space:pre-wrap;word-break:break-word;background:#09090d;border-radius:14px;padding:12px;color:#c7c7d2;min-height:72px}.micro{font-size:12px;color:#8e8e99;margin-top:10px}@media(max-width:520px){.row{grid-template-columns:1fr}}
+  </style>
+</head>
+<body>
+  <main>
+    <h1>eCompanion Body</h1>
+    <p class="sub">Platform-independent device surface for the eCompanion Runtime.</p>
+
+    <section class="card">
+      <div class="status"><span id="statusDot" class="dot"></span><span id="statusText">Not paired</span></div>
+      <div id="capabilities" class="caps"></div>
+    </section>
+
+    <section class="card">
+      <label for="runtimeBase">Runtime base URL</label>
+      <input id="runtimeBase" inputmode="url" placeholder="https://runtime.example.com" />
+
+      <div class="row">
+        <div>
+          <label for="deviceLabel">Device label</label>
+          <input id="deviceLabel" placeholder="My iPhone" />
+        </div>
+        <div>
+          <label for="pairingCode">Pairing code</label>
+          <input id="pairingCode" autocomplete="one-time-code" autocapitalize="none" spellcheck="false" placeholder="One-time code from eHub" />
+        </div>
+      </div>
+
+      <div class="actions">
+        <button id="pairBtn">Pair body</button>
+        <button id="connectBtn" class="secondary">Check pairing</button>
+        <button id="syncDeviceBtn" class="secondary">Sync capabilities</button>
+        <button id="availableBtn" class="secondary">Available</button>
+        <button id="offlineBtn" class="secondary">Offline</button>
+        <button id="forgetBtn" class="secondary">Forget local pairing</button>
+      </div>
+      <p class="micro">The Runtime root bearer is never entered or stored here. After one-time pairing this body keeps only its revocable, self-scoped device credential.</p>
+    </section>
+
+    <section class="card">
+      <strong>Body identity</strong>
+      <pre id="bodyInfo"></pre>
+    </section>
+
+    <section class="card">
+      <strong>Runtime response</strong>
+      <pre id="output">Ready to pair.</pre>
+    </section>
+  </main>
+  <script type="module" src="./app.js"></script>
+</body>
+</html>
