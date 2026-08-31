@@ -132,6 +132,15 @@ function deviceDescriptor() {
   };
 }
 
+function runtimeErrorMessage(payload, status) {
+  const code = String(payload?.error || '').trim();
+  const message = String(payload?.message || '').trim();
+  if (code && message && message !== 'Runtime operation failed') return `${code}: ${message}`;
+  if (code) return code;
+  if (message) return message;
+  return `HTTP ${status}`;
+}
+
 async function parseResponse(response) {
   const contentType = String(response.headers.get('content-type') || '').toLowerCase();
   if (!contentType.includes('application/json')) {
@@ -146,7 +155,7 @@ async function parseResponse(response) {
 
   const payload = await response.json().catch(() => ({ ok: false, error: 'invalid_json_response' }));
   if (!response.ok) {
-    const error = new Error(payload?.message || payload?.error || `HTTP ${response.status}`);
+    const error = new Error(runtimeErrorMessage(payload, response.status));
     error.payload = payload;
     throw error;
   }
