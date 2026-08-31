@@ -16,7 +16,7 @@
     <p class="sub">Platform-independent device surface for the eCompanion Runtime.</p>
 
     <section class="card">
-      <div class="status"><span id="statusDot" class="dot"></span><span id="statusText">Not connected</span></div>
+      <div class="status"><span id="statusDot" class="dot"></span><span id="statusText">Not paired</span></div>
       <div id="capabilities" class="caps"></div>
     </section>
 
@@ -24,27 +24,26 @@
       <label for="runtimeBase">Runtime base URL</label>
       <input id="runtimeBase" inputmode="url" placeholder="https://runtime.example.com" />
 
-      <label for="token">Runtime bearer token</label>
-      <input id="token" type="password" autocomplete="off" placeholder="Held in memory only" />
-
       <div class="row">
         <div>
           <label for="deviceLabel">Device label</label>
           <input id="deviceLabel" placeholder="My iPhone" />
         </div>
         <div>
-          <label for="actorId">Assigned actor ID</label>
-          <input id="actorId" placeholder="Runtime actor UUID" />
+          <label for="pairingCode">Pairing code</label>
+          <input id="pairingCode" autocomplete="one-time-code" autocapitalize="none" spellcheck="false" placeholder="One-time code from eHub" />
         </div>
       </div>
 
       <div class="actions">
-        <button id="connectBtn">Connect</button>
-        <button id="registerBtn" class="secondary">Register body</button>
+        <button id="pairBtn">Pair body</button>
+        <button id="connectBtn" class="secondary">Check pairing</button>
+        <button id="syncDeviceBtn" class="secondary">Sync capabilities</button>
         <button id="availableBtn" class="secondary">Available</button>
         <button id="offlineBtn" class="secondary">Offline</button>
+        <button id="forgetBtn" class="secondary">Forget local pairing</button>
       </div>
-      <p class="micro">Secrets are never persisted by this client. Cross-origin Runtime access requires an explicit trusted-origin policy; same-origin works without one.</p>
+      <p class="micro">The Runtime root bearer is never entered or stored here. After one-time pairing this body keeps only its revocable, self-scoped device credential.</p>
     </section>
 
     <section class="card">
@@ -54,7 +53,7 @@
 
     <section class="card">
       <strong>Runtime response</strong>
-      <pre id="output">Ready.</pre>
+      <pre id="output">Ready to pair.</pre>
     </section>
   </main>
   <script type="module" src="./app.js"></script>
