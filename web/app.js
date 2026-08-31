@@ -5,13 +5,20 @@ const statusDot = $('statusDot');
 const statusText = $('statusText');
 const capabilitiesEl = $('capabilities');
 
-const savedDeviceId = localStorage.getItem('ecompanion.device_id');
-const deviceId = savedDeviceId || `ebody:${crypto.randomUUID()}`;
-if (!savedDeviceId) localStorage.setItem('ecompanion.device_id', deviceId);
+const STORAGE = Object.freeze({
+  deviceId: 'ecompanion.device_id',
+  runtimeBase: 'ecompanion.runtime_base',
+  deviceLabel: 'ecompanion.device_label',
+  deviceToken: 'ecompanion.device_token',
+  credentialId: 'ecompanion.credential_id'
+});
 
-$('runtimeBase').value = localStorage.getItem('ecompanion.runtime_base') || location.origin;
-$('deviceLabel').value = localStorage.getItem('ecompanion.device_label') || 'eCompanion Body';
-$('actorId').value = localStorage.getItem('ecompanion.actor_id') || '';
+const savedDeviceId = localStorage.getItem(STORAGE.deviceId);
+const deviceId = savedDeviceId || `ebody:${crypto.randomUUID()}`;
+if (!savedDeviceId) localStorage.setItem(STORAGE.deviceId, deviceId);
+
+$('runtimeBase').value = localStorage.getItem(STORAGE.runtimeBase) || location.origin;
+$('deviceLabel').value = localStorage.getItem(STORAGE.deviceLabel) || 'eCompanion Body';
 
 function detectCapabilities() {
   return Object.freeze({
@@ -39,13 +46,28 @@ function renderCapabilities() {
   }
 }
 
-function bodyIdentity() {
+function currentToken() {
+  return localStorage.getItem(STORAGE.deviceToken) || '';
+}
+
+function currentCredentialId() {
+  return localStorage.getItem(STORAGE.credentialId) || '';
+}
+
+function bodyIdentity(extra = {}) {
   return {
     protocol: 'ecompanion-body-web-v1',
     device_id: deviceId,
-    platform: 'web',
-    capabilities
+    platform: 'web-pwa',
+    paired: Boolean(currentToken()),
+    credential_id: currentCredentialId() || null,
+    capabilities,
+    ...extra
   };
+}
+
+function renderBodyIdentity(extra = {}) {
+  $('bodyInfo').textContent = JSON.stringify(bodyIdentity(extra), null, 2);
 }
 
 function show(payload) {
@@ -60,27 +82,27 @@ function setStatus(ok, text) {
 function runtimeBase() {
   const value = $('runtimeBase').value.trim().replace(/\/$/, '');
   if (!/^https?:\/\//i.test(value)) throw new Error('Runtime base URL must start with http:// or https://');
-  localStorage.setItem('ecompanion.runtime_base', value);
+  localStorage.setItem(STORAGE.runtimeBase, value);
   return value;
 }
 
-function token() {
-  const value = $('token').value.trim();
-  if (!value) throw new Error('Runtime bearer token is required');
-  return value;
+function deviceDescriptor() {
+  const label = $('deviceLabel').value.trim();
+  if (!label) throw new Error('Device label is required');
+  localStorage.setItem(STORAGE.deviceLabel, label);
+  return {
+    id: deviceId,
+    label,
+    platform: 'web-pwa',
+    capabilities,
+    metadata: {
+      body_protocol: 'ecompanion-body-web-v1',
+      install_mode: capabilities.standalone ? 'standalone' : 'browser'
+    }
+  };
 }
 
-async function runtimeRequest(path, { method = 'GET', body } = {}) {
-  const response = await fetch(`${runtimeBase()}${path}`, {
-    method,
-    headers: {
-      authorization: `Bearer ${token()}`,
-      ...(body ? { 'content-type': 'application/json' } : {})
-    },
-    body: body ? JSON.stringify(body) : undefined,
-    cache: 'no-store'
-  });
-
+async function parseResponse(response) {
   const payload = await response.json().catch(() => ({ ok: false, error: 'invalid_json_response' }));
   if (!response.ok) {
     const error = new Error(payload?.message || payload?.error || `HTTP ${response.status}`);
@@ -88,6 +110,31 @@ async function runtimeRequest(path, { method = 'GET', body } = {}) {
     throw error;
   }
   return payload;
+}
+
+async function pairingRequest(code) {
+  const response = await fetch(`${runtimeBase()}/api/v1/device-pairing/claim`, {
+    method: 'POST',
+    headers: { 'content-type': 'application/json' },
+    body: JSON.stringify({ code, device: deviceDescriptor() }),
+    cache: 'no-store'
+  });
+  return parseResponse(response);
+}
+
+async function bodyRequest(path, { method = 'GET', body } = {}) {
+  const token = currentToken();
+  if (!token) throw new Error('This body is not paired yet');
+  const response = await fetch(`${runtimeBase()}${path}`, {
+    method,
+    headers: {
+      authorization: `Bearer ${token}`,
+      ...(body ? { 'content-type': 'application/json' } : {})
+    },
+    body: body ? JSON.stringify(body) : undefined,
+    cache: 'no-store'
+  });
+  return parseResponse(response);
 }
 
 async function run(action) {
@@ -102,51 +149,57 @@ async function run(action) {
   }
 }
 
-$('connectBtn').addEventListener('click', () => run(async () => {
-  const result = await runtimeRequest('/api/v1/runtime');
-  setStatus(true, `Connected · Runtime ${result.runtime?.version || ''}`.trim());
+async function refreshSelf() {
+  const result = await bodyRequest('/api/v1/body/me');
+  const device = result.body?.device;
+  renderBodyIdentity({
+    assigned_actor_id: device?.assigned_actor_id ?? null,
+    runtime_device: device ?? null
+  });
+  setStatus(true, device?.assigned_actor_id ? 'Paired · actor assigned' : 'Paired · no actor assigned');
+  return result;
+}
+
+$('pairBtn').addEventListener('click', () => run(async () => {
+  const code = $('pairingCode').value.trim();
+  if (!code) throw new Error('Pairing code is required');
+  const result = await pairingRequest(code);
+  const token = result.credential?.token;
+  if (!token) throw new Error('Runtime did not return a device credential');
+  localStorage.setItem(STORAGE.deviceToken, token);
+  if (result.credential?.id) localStorage.setItem(STORAGE.credentialId, result.credential.id);
+  $('pairingCode').value = '';
+  setStatus(true, 'Body paired');
+  renderBodyIdentity({ assigned_actor_id: result.device?.assigned_actor_id ?? null });
   return result;
 }).catch(() => {}));
 
-$('registerBtn').addEventListener('click', () => run(async () => {
-  const label = $('deviceLabel').value.trim();
-  if (!label) throw new Error('Device label is required');
-  const actorId = $('actorId').value.trim();
-  localStorage.setItem('ecompanion.device_label', label);
-  if (actorId) localStorage.setItem('ecompanion.actor_id', actorId);
-  else localStorage.removeItem('ecompanion.actor_id');
+$('connectBtn').addEventListener('click', () => run(() => refreshSelf()).catch(() => {}));
 
-  const result = await runtimeRequest('/api/v1/devices', {
-    method: 'POST',
+$('syncDeviceBtn').addEventListener('click', () => run(async () => {
+  const descriptor = deviceDescriptor();
+  const result = await bodyRequest('/api/v1/body/device', {
+    method: 'PUT',
     body: {
-      id: deviceId,
-      label,
-      platform: 'web-pwa',
-      assignedActorId: actorId || undefined,
-      capabilities,
-      metadata: {
-        body_protocol: 'ecompanion-body-web-v1',
-        install_mode: capabilities.standalone ? 'standalone' : 'browser'
-      }
+      label: descriptor.label,
+      platform: descriptor.platform,
+      capabilities: descriptor.capabilities,
+      metadata: descriptor.metadata
     }
   });
-  setStatus(true, 'Body registered');
+  setStatus(true, 'Body capabilities synced');
   return result;
 }).catch(() => {}));
 
 async function setPresence(state) {
-  const actorId = $('actorId').value.trim();
-  if (!actorId) throw new Error('Assigned actor ID is required for presence');
-  localStorage.setItem('ecompanion.actor_id', actorId);
-  const result = await runtimeRequest('/api/v1/presence', {
+  const result = await bodyRequest('/api/v1/body/presence', {
     method: 'PUT',
     body: {
-      actorId,
-      deviceId,
       state,
       details: {
         body_protocol: 'ecompanion-body-web-v1',
-        capabilities
+        capabilities,
+        surface: document.visibilityState
       }
     }
   });
@@ -157,8 +210,17 @@ async function setPresence(state) {
 $('availableBtn').addEventListener('click', () => run(() => setPresence('available')).catch(() => {}));
 $('offlineBtn').addEventListener('click', () => run(() => setPresence('offline')).catch(() => {}));
 
+$('forgetBtn').addEventListener('click', () => {
+  localStorage.removeItem(STORAGE.deviceToken);
+  localStorage.removeItem(STORAGE.credentialId);
+  setStatus(false, 'Pairing removed from this browser');
+  renderBodyIdentity();
+  show({ ok: true, local_pairing_removed: true, note: 'Server-side revocation remains owner-controlled.' });
+});
+
 renderCapabilities();
-$('bodyInfo').textContent = JSON.stringify(bodyIdentity(), null, 2);
+renderBodyIdentity();
+if (currentToken()) refreshSelf().catch(() => setStatus(false, 'Stored pairing needs attention'));
 
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('./sw.js').catch((error) => {
