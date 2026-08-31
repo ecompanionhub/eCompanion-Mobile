@@ -19,7 +19,7 @@ const STORAGE = Object.freeze({
 });
 
 const savedDeviceId = localStorage.getItem(STORAGE.deviceId);
-const deviceId = savedDeviceId || `ebody:${crypto.randomUUID()}`;
+let deviceId = savedDeviceId || `ebody:${crypto.randomUUID()}`;
 if (!savedDeviceId) localStorage.setItem(STORAGE.deviceId, deviceId);
 
 function normalizedHttpUrl(value) {
@@ -47,8 +47,18 @@ try {
   initialRuntime = '';
 }
 
+const hashParams = new URLSearchParams(location.hash.replace(/^#/, ''));
+let pendingRelinkCode = String(hashParams.get('relink') || '').trim();
+if (pendingRelinkCode) {
+  history.replaceState(null, '', `${location.pathname}${location.search}`);
+}
+
 $('runtimeBase').value = initialRuntime;
 $('deviceLabel').value = localStorage.getItem(STORAGE.deviceLabel) || 'eCompanion Body';
+if (pendingRelinkCode) {
+  $('pairingCode').value = pendingRelinkCode;
+  $('pairBtn').textContent = 'Reconnect body';
+}
 
 function detectCapabilities() {
   return Object.freeze({
@@ -231,6 +241,9 @@ function renderChatError(error) {
   if (error?.payload?.error === 'BODY_COMPANION_NOT_CONFIGURED') {
     empty.textContent = 'This paired body still needs a companion assignment in eHub Body setup.';
     chatMeta.textContent = 'Body paired · companion setup required';
+  } else if (!currentToken() && pendingRelinkCode) {
+    empty.textContent = 'Reconnect link ready. Tap Reconnect body below.';
+    chatMeta.textContent = 'Reconnect ready';
   } else if (!currentToken()) {
     empty.textContent = 'Pair this body first.';
     chatMeta.textContent = 'Not paired';
@@ -255,6 +268,10 @@ async function loadChat() {
 async function refreshSelf() {
   const result = await bodyRequest('/api/v1/body/me');
   const device = result.body?.device;
+  if (device?.id && device.id !== deviceId) {
+    deviceId = device.id;
+    localStorage.setItem(STORAGE.deviceId, deviceId);
+  }
   renderBodyIdentity({
     assigned_actor_id: device?.assigned_actor_id ?? null,
     runtime_device: device ?? null
@@ -273,10 +290,22 @@ $('pairBtn').addEventListener('click', () => run(async () => {
     error.payload = result;
     throw error;
   }
+
+  if (result.device?.id) {
+    deviceId = result.device.id;
+    localStorage.setItem(STORAGE.deviceId, deviceId);
+  }
+  if (result.device?.label) {
+    $('deviceLabel').value = result.device.label;
+    localStorage.setItem(STORAGE.deviceLabel, result.device.label);
+  }
+
   localStorage.setItem(STORAGE.deviceToken, token);
   if (result.credential?.id) localStorage.setItem(STORAGE.credentialId, result.credential.id);
   $('pairingCode').value = '';
-  setStatus(true, 'Body paired');
+  pendingRelinkCode = '';
+  $('pairBtn').textContent = 'Pair body';
+  setStatus(true, result.relinked ? 'Body reconnected' : 'Body paired');
   renderBodyIdentity({ assigned_actor_id: result.device?.assigned_actor_id ?? null });
   await loadChat().catch(() => null);
   return result;
@@ -369,6 +398,9 @@ if (currentToken()) {
   refreshSelf()
     .then(() => Promise.allSettled([loadChat(), setPresence(document.visibilityState === 'visible' ? 'available' : 'away')]))
     .catch(() => setStatus(false, 'Stored pairing needs attention'));
+} else if (pendingRelinkCode) {
+  setStatus(false, 'Reconnect link ready');
+  renderChatError(new Error('Reconnect this body.'));
 } else {
   renderChatError(new Error('Pair this body first.'));
 }
