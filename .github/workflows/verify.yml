@@ -57,5 +57,9 @@ jobs:
           assert '/api/v1/body/device' in js
           assert '/api/v1/body/presence' in js
           assert 'ecompanion.device_token' in js
+          assert 'new URLSearchParams(location.search)' in js
+          assert "|| location.origin" not in js
+          assert 'Runtime base URL is required' in js
+          assert 'non-JSON response' in js
           print('mobile boundary/static gate: PASS')
           PY
