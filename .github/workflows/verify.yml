@@ -36,7 +36,8 @@ jobs:
               'pairBtn', 'connectBtn', 'syncDeviceBtn', 'availableBtn',
               'offlineBtn', 'forgetBtn', 'pairingCode', 'runtimeBase',
               'deviceLabel', 'output', 'statusDot', 'statusText',
-              'capabilities', 'bodyInfo'
+              'capabilities', 'bodyInfo', 'messages', 'chatForm',
+              'chatInput', 'sendBtn', 'refreshChatBtn', 'chatTitle', 'chatMeta'
           ]
           missing = [value for value in required_ids if f'id="{value}"' not in html]
           assert not missing, f'missing UI ids: {missing}'
@@ -46,7 +47,9 @@ jobs:
               "$('token')",
               '/api/v1/devices',
               '/api/v1/presence',
-              'actorId'
+              'actorId',
+              'companionId',
+              'conversationId'
           ]
           combined = html + '\n' + js
           found = [value for value in forbidden if value in combined]
@@ -56,6 +59,8 @@ jobs:
           assert '/api/v1/body/me' in js
           assert '/api/v1/body/device' in js
           assert '/api/v1/body/presence' in js
+          assert '/api/v1/body/chat?limit=100' in js
+          assert '/api/v1/body/chat/turn' in js
           assert 'ecompanion.device_token' in js
           assert 'new URLSearchParams(location.search)' in js
           assert "|| location.origin" not in js
