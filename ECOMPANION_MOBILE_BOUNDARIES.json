@@ -1,0 +1,33 @@
+{
+  "schema": "ECOMPANION_MOBILE_BOUNDARIES_V1",
+  "authority": {
+    "companion_identity": "runtime",
+    "memory": "runtime",
+    "device_state": "runtime",
+    "client_secrets": "never_committed"
+  },
+  "platform_independence": {
+    "paid_platform_membership_required": false,
+    "minimum_body_surface": "web_pwa",
+    "native_sidecar_optional": true,
+    "capability_negotiation_required": true,
+    "self_hostable_transport_required": true
+  },
+  "forbidden": [
+    "hardcoded_companion_identity_in_client_core",
+    "committed_runtime_tokens",
+    "apple_specific_identity_or_memory_authority",
+    "vendor_only_core_transport",
+    "silent_capability_assumptions"
+  ],
+  "baseline_capabilities": [
+    "display",
+    "audio_output",
+    "microphone",
+    "camera",
+    "webrtc",
+    "notifications",
+    "web_push",
+    "service_worker"
+  ]
+}

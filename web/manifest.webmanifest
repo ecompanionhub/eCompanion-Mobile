@@ -1,0 +1,11 @@
+{
+  "name": "eCompanion Body",
+  "short_name": "eBody",
+  "description": "Platform-independent body surface for eCompanion.",
+  "start_url": "./",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#0b0b0f",
+  "theme_color": "#0b0b0f",
+  "orientation": "portrait-primary"
+}
