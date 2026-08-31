@@ -6,7 +6,9 @@
     "device_state": "runtime",
     "client_secrets": "never_committed",
     "runtime_root_token_on_body": "forbidden",
-    "device_credential": "scoped_revocable_only"
+    "device_credential": "scoped_revocable_only",
+    "body_chat_companion_selection": "runtime_assigned_only",
+    "body_chat_cross_companion_access": "forbidden"
   },
   "platform_independence": {
     "paid_platform_membership_required": false,
@@ -27,6 +29,7 @@
     "committed_runtime_tokens",
     "runtime_root_bearer_on_body",
     "client_selected_actor_authority",
+    "client_selected_companion_chat_authority",
     "apple_specific_identity_or_memory_authority",
     "vendor_only_core_transport",
     "silent_capability_assumptions"
