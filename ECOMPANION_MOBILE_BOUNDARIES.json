@@ -4,7 +4,9 @@
     "companion_identity": "runtime",
     "memory": "runtime",
     "device_state": "runtime",
-    "client_secrets": "never_committed"
+    "client_secrets": "never_committed",
+    "runtime_root_token_on_body": "forbidden",
+    "device_credential": "scoped_revocable_only"
   },
   "platform_independence": {
     "paid_platform_membership_required": false,
@@ -13,9 +15,18 @@
     "capability_negotiation_required": true,
     "self_hostable_transport_required": true
   },
+  "pairing": {
+    "method": "one_time_runtime_grant",
+    "actor_assignment_authority": "runtime",
+    "client_may_supply_actor_id": false,
+    "root_bearer_entry_in_body_ui": false,
+    "local_secret_class": "device_scoped_credential_only"
+  },
   "forbidden": [
     "hardcoded_companion_identity_in_client_core",
     "committed_runtime_tokens",
+    "runtime_root_bearer_on_body",
+    "client_selected_actor_authority",
     "apple_specific_identity_or_memory_authority",
     "vendor_only_core_transport",
     "silent_capability_assumptions"
