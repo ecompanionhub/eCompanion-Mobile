@@ -17,7 +17,32 @@ const savedDeviceId = localStorage.getItem(STORAGE.deviceId);
 const deviceId = savedDeviceId || `ebody:${crypto.randomUUID()}`;
 if (!savedDeviceId) localStorage.setItem(STORAGE.deviceId, deviceId);
 
-$('runtimeBase').value = localStorage.getItem(STORAGE.runtimeBase) || location.origin;
+function normalizedHttpUrl(value) {
+  const raw = String(value ?? '').trim().replace(/\/$/, '');
+  if (!raw) return '';
+  let parsed;
+  try {
+    parsed = new URL(raw);
+  } catch {
+    throw new Error('Runtime base URL must be a valid http:// or https:// URL');
+  }
+  if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
+    throw new Error('Runtime base URL must start with http:// or https://');
+  }
+  return parsed.href.replace(/\/$/, '');
+}
+
+const runtimeFromQuery = new URLSearchParams(location.search).get('runtime');
+const savedRuntime = localStorage.getItem(STORAGE.runtimeBase) || '';
+let initialRuntime = '';
+try {
+  initialRuntime = normalizedHttpUrl(runtimeFromQuery || savedRuntime);
+  if (runtimeFromQuery && initialRuntime) localStorage.setItem(STORAGE.runtimeBase, initialRuntime);
+} catch {
+  initialRuntime = '';
+}
+
+$('runtimeBase').value = initialRuntime;
 $('deviceLabel').value = localStorage.getItem(STORAGE.deviceLabel) || 'eCompanion Body';
 
 function detectCapabilities() {
@@ -80,8 +105,8 @@ function setStatus(ok, text) {
 }
 
 function runtimeBase() {
-  const value = $('runtimeBase').value.trim().replace(/\/$/, '');
-  if (!/^https?:\/\//i.test(value)) throw new Error('Runtime base URL must start with http:// or https://');
+  const value = normalizedHttpUrl($('runtimeBase').value);
+  if (!value) throw new Error('Runtime base URL is required');
   localStorage.setItem(STORAGE.runtimeBase, value);
   return value;
 }
@@ -103,6 +128,17 @@ function deviceDescriptor() {
 }
 
 async function parseResponse(response) {
+  const contentType = String(response.headers.get('content-type') || '').toLowerCase();
+  if (!contentType.includes('application/json')) {
+    const error = new Error('Runtime endpoint returned a non-JSON response. Check that Runtime base URL points to eCompanion Runtime, not the body website.');
+    error.payload = {
+      status: response.status,
+      content_type: contentType || null,
+      runtime_base: $('runtimeBase').value.trim() || null
+    };
+    throw error;
+  }
+
   const payload = await response.json().catch(() => ({ ok: false, error: 'invalid_json_response' }));
   if (!response.ok) {
     const error = new Error(payload?.message || payload?.error || `HTTP ${response.status}`);
@@ -165,7 +201,11 @@ $('pairBtn').addEventListener('click', () => run(async () => {
   if (!code) throw new Error('Pairing code is required');
   const result = await pairingRequest(code);
   const token = result.credential?.token;
-  if (!token) throw new Error('Runtime did not return a device credential');
+  if (!token) {
+    const error = new Error('Runtime pairing response did not include a device credential');
+    error.payload = result;
+    throw error;
+  }
   localStorage.setItem(STORAGE.deviceToken, token);
   if (result.credential?.id) localStorage.setItem(STORAGE.credentialId, result.credential.id);
   $('pairingCode').value = '';
