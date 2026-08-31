@@ -66,5 +66,7 @@ jobs:
           assert "|| location.origin" not in js
           assert 'Runtime base URL is required' in js
           assert 'non-JSON response' in js
+          assert 'runtimeErrorMessage' in js
+          assert "message !== 'Runtime operation failed'" in js
           print('mobile boundary/static gate: PASS')
           PY
