@@ -4,6 +4,11 @@ const output = $('output');
 const statusDot = $('statusDot');
 const statusText = $('statusText');
 const capabilitiesEl = $('capabilities');
+const messagesEl = $('messages');
+const chatTitle = $('chatTitle');
+const chatMeta = $('chatMeta');
+const chatInput = $('chatInput');
+const sendBtn = $('sendBtn');
 
 const STORAGE = Object.freeze({
   deviceId: 'ecompanion.device_id',
@@ -185,6 +190,59 @@ async function run(action) {
   }
 }
 
+function renderMessages(items) {
+  messagesEl.replaceChildren();
+  if (!items.length) {
+    const empty = document.createElement('div');
+    empty.className = 'empty-chat';
+    empty.textContent = 'No messages yet. Say something.';
+    messagesEl.append(empty);
+    return;
+  }
+  for (const item of items) {
+    if (item.role !== 'user' && item.role !== 'assistant' && item.role !== 'system') continue;
+    const bubble = document.createElement('div');
+    bubble.className = `bubble ${item.role}`;
+    bubble.textContent = String(item.content || '');
+    messagesEl.append(bubble);
+  }
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+
+function renderChat(chat) {
+  chatTitle.textContent = String(chat?.companion?.name || 'Companion');
+  chatMeta.textContent = chat?.conversation ? 'Connected · conversation active' : 'Connected · start a conversation';
+  renderMessages(Array.isArray(chat?.messages) ? chat.messages : []);
+}
+
+function renderChatError(error) {
+  messagesEl.replaceChildren();
+  const empty = document.createElement('div');
+  empty.className = 'empty-chat';
+  if (error?.payload?.error === 'BODY_COMPANION_NOT_CONFIGURED') {
+    empty.textContent = 'This paired body still needs a companion assignment in eHub Body setup.';
+    chatMeta.textContent = 'Body paired · companion setup required';
+  } else if (!currentToken()) {
+    empty.textContent = 'Pair this body first.';
+    chatMeta.textContent = 'Not paired';
+  } else {
+    empty.textContent = error?.message || 'Chat unavailable.';
+    chatMeta.textContent = 'Chat unavailable';
+  }
+  messagesEl.append(empty);
+}
+
+async function loadChat() {
+  try {
+    const result = await bodyRequest('/api/v1/body/chat?limit=100');
+    renderChat(result.chat);
+    return result;
+  } catch (error) {
+    renderChatError(error);
+    throw error;
+  }
+}
+
 async function refreshSelf() {
   const result = await bodyRequest('/api/v1/body/me');
   const device = result.body?.device;
@@ -211,10 +269,15 @@ $('pairBtn').addEventListener('click', () => run(async () => {
   $('pairingCode').value = '';
   setStatus(true, 'Body paired');
   renderBodyIdentity({ assigned_actor_id: result.device?.assigned_actor_id ?? null });
+  await loadChat().catch(() => null);
   return result;
 }).catch(() => {}));
 
-$('connectBtn').addEventListener('click', () => run(() => refreshSelf()).catch(() => {}));
+$('connectBtn').addEventListener('click', () => run(async () => {
+  const result = await refreshSelf();
+  await loadChat().catch(() => null);
+  return result;
+}).catch(() => {}));
 
 $('syncDeviceBtn').addEventListener('click', () => run(async () => {
   const descriptor = deviceDescriptor();
@@ -249,18 +312,57 @@ async function setPresence(state) {
 
 $('availableBtn').addEventListener('click', () => run(() => setPresence('available')).catch(() => {}));
 $('offlineBtn').addEventListener('click', () => run(() => setPresence('offline')).catch(() => {}));
+$('refreshChatBtn').addEventListener('click', () => run(() => loadChat()).catch(() => {}));
+
+$('chatForm').addEventListener('submit', (event) => {
+  event.preventDefault();
+  run(async () => {
+    const content = chatInput.value.trim();
+    if (!content) throw new Error('Message is empty');
+    sendBtn.disabled = true;
+    chatInput.disabled = true;
+    try {
+      const result = await bodyRequest('/api/v1/body/chat/turn', {
+        method: 'POST',
+        body: { content }
+      });
+      chatInput.value = '';
+      setStatus(true, 'Chat connected');
+      await loadChat();
+      setPresence('available').catch(() => null);
+      return result;
+    } finally {
+      sendBtn.disabled = false;
+      chatInput.disabled = false;
+      chatInput.focus();
+    }
+  }).catch((error) => renderChatError(error));
+});
 
 $('forgetBtn').addEventListener('click', () => {
   localStorage.removeItem(STORAGE.deviceToken);
   localStorage.removeItem(STORAGE.credentialId);
   setStatus(false, 'Pairing removed from this browser');
   renderBodyIdentity();
+  renderChatError(new Error('Pair this body first.'));
   show({ ok: true, local_pairing_removed: true, note: 'Server-side revocation remains owner-controlled.' });
+});
+
+document.addEventListener('visibilitychange', () => {
+  if (!currentToken()) return;
+  const state = document.visibilityState === 'visible' ? 'available' : 'away';
+  setPresence(state).catch(() => null);
 });
 
 renderCapabilities();
 renderBodyIdentity();
-if (currentToken()) refreshSelf().catch(() => setStatus(false, 'Stored pairing needs attention'));
+if (currentToken()) {
+  refreshSelf()
+    .then(() => Promise.allSettled([loadChat(), setPresence(document.visibilityState === 'visible' ? 'available' : 'away')]))
+    .catch(() => setStatus(false, 'Stored pairing needs attention'));
+} else {
+  renderChatError(new Error('Pair this body first.'));
+}
 
 if ('serviceWorker' in navigator) {
   navigator.serviceWorker.register('./sw.js').catch((error) => {
