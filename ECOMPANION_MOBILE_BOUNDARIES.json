@@ -9,14 +9,19 @@
     "device_credential": "scoped_revocable_only",
     "body_chat_companion_selection": "runtime_assigned_only",
     "body_chat_cross_companion_access": "forbidden",
-    "relink_device_identity": "runtime_returned_existing_device_only"
+    "relink_device_identity": "runtime_returned_existing_device_only",
+    "body_action_policy": "runtime_scoped_deny_by_default",
+    "body_action_execution": "native_body_agent",
+    "integration_execution": "replaceable_adapter"
   },
   "platform_independence": {
     "paid_platform_membership_required": false,
     "minimum_body_surface": "web_pwa",
-    "native_sidecar_optional": true,
+    "native_sidecar_optional": false,
+    "native_body_agent_required": true,
     "capability_negotiation_required": true,
-    "self_hostable_transport_required": true
+    "self_hostable_transport_required": true,
+    "elevated_adapter_reserved": true
   },
   "pairing": {
     "method": "one_time_runtime_grant",
@@ -30,13 +35,25 @@
     "relink_client_device_id_authority": false
   },
   "voice": {
-    "input_adapter": "capability_negotiated_browser_speech_v1",
-    "output_adapter": "capability_negotiated_browser_speech_synthesis_v1",
+    "input_adapter": "capability_negotiated",
+    "output_adapter": "capability_negotiated",
     "paid_provider_required": false,
     "runtime_chat_authority": "unchanged",
     "transcript_transport": "existing_body_chat_turn",
     "client_companion_selection": false,
-    "custom_voice_provider": "optional_future_adapter"
+    "native_wake_word_target": true,
+    "browser_adapter_role": "fallback"
+  },
+  "body_agent": {
+    "capability_contract": "BODY_AGENT_CAPABILITIES.json",
+    "native_core": "native/BodyAgentCore",
+    "execution_tiers": ["stock", "integration", "elevated"],
+    "unsupported_capabilities": "fail_closed",
+    "elevated_capabilities_default": "unavailable",
+    "arbitrary_shell_execution": false,
+    "communication_intent": "transport_neutral",
+    "messaging_transports": ["telegram", "discord", "runtime", "local_grid"],
+    "call_transport": "self_hostable_webrtc"
   },
   "forbidden": [
     "hardcoded_companion_identity_in_client_core",
@@ -47,6 +64,9 @@
     "client_selected_relink_device_authority",
     "voice_bypass_runtime_conversation",
     "voice_adapter_selected_companion_authority",
+    "integration_specific_companion_identity",
+    "implicit_elevated_privileges",
+    "arbitrary_shell_execution",
     "apple_specific_identity_or_memory_authority",
     "vendor_only_core_transport",
     "silent_capability_assumptions"
