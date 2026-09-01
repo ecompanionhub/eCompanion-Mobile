@@ -42,8 +42,9 @@ final class BodyAgentCoreTests: XCTestCase {
             XCTAssertEqual(error, .unknownCapability("device.magic"))
         }
 
+        let snapshot = await broker.snapshot()
         let elevated = try XCTUnwrap(
-            await broker.snapshot().first(where: { $0.id == "elevated.springboard" })
+            snapshot.first(where: { $0.id == "elevated.springboard" })
         )
         XCTAssertEqual(elevated.tier, .elevated)
         XCTAssertEqual(elevated.availability, .unavailable)
