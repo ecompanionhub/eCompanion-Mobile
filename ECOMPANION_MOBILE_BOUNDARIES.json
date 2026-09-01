@@ -29,6 +29,15 @@
     "relink_code_removed_from_url_after_boot": true,
     "relink_client_device_id_authority": false
   },
+  "voice": {
+    "input_adapter": "capability_negotiated_browser_speech_v1",
+    "output_adapter": "capability_negotiated_browser_speech_synthesis_v1",
+    "paid_provider_required": false,
+    "runtime_chat_authority": "unchanged",
+    "transcript_transport": "existing_body_chat_turn",
+    "client_companion_selection": false,
+    "custom_voice_provider": "optional_future_adapter"
+  },
   "forbidden": [
     "hardcoded_companion_identity_in_client_core",
     "committed_runtime_tokens",
@@ -36,6 +45,8 @@
     "client_selected_actor_authority",
     "client_selected_companion_chat_authority",
     "client_selected_relink_device_authority",
+    "voice_bypass_runtime_conversation",
+    "voice_adapter_selected_companion_authority",
     "apple_specific_identity_or_memory_authority",
     "vendor_only_core_transport",
     "silent_capability_assumptions"
@@ -48,6 +59,8 @@
     "webrtc",
     "notifications",
     "web_push",
-    "service_worker"
+    "service_worker",
+    "speech_recognition",
+    "speech_synthesis"
   ]
 }
