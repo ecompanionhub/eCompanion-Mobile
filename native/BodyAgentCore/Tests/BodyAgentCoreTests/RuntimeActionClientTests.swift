@@ -55,7 +55,7 @@ private struct DeniedExecutor: BodyActionExecutor {
     }
 }
 
-private func jsonResponse(_ status: Int = 200, _ object: Any) -> RuntimeHTTPResponse {
+private func jsonResponse(_ object: Any, status: Int = 200) -> RuntimeHTTPResponse {
     RuntimeHTTPResponse(
         statusCode: status,
         data: try! JSONSerialization.data(withJSONObject: object)
@@ -132,7 +132,7 @@ final class RuntimeActionClientTests: XCTestCase {
         let runtime = client(broker: broker, transport: transport)
 
         let result = try await runtime.runOneCycle()
-        XCTAssertEqual(result.outcome, .completed)
+        XCTAssertEqual(result.outcome, RuntimeActionCycleResult.Outcome.completed)
         XCTAssertEqual(result.actionID, actionID)
 
         let requests = await transport.requests()
@@ -146,7 +146,7 @@ final class RuntimeActionClientTests: XCTestCase {
         let output = try XCTUnwrap(completion["result"] as? [String: Any])
         let media = try XCTUnwrap(output["media"] as? [String: Any])
         XCTAssertEqual(media["ref"] as? String, "local://photo-1")
-        XCTAssertEqual(media["width"] as? Double, 1920)
+        XCTAssertEqual((media["width"] as? NSNumber)?.doubleValue, 1920)
     }
 
     func testExecutorFailureIsReportedToRuntimeInsteadOfEscapingAsCompleted() async throws {
@@ -172,7 +172,7 @@ final class RuntimeActionClientTests: XCTestCase {
         let runtime = client(broker: broker, transport: transport)
 
         let result = try await runtime.runOneCycle()
-        XCTAssertEqual(result.outcome, .failed)
+        XCTAssertEqual(result.outcome, RuntimeActionCycleResult.Outcome.failed)
 
         let requests = await transport.requests()
         let completionBody = try XCTUnwrap(requests[1].httpBody)
@@ -189,7 +189,7 @@ final class RuntimeActionClientTests: XCTestCase {
         let runtime = client(broker: broker, transport: transport)
 
         let result = try await runtime.runOneCycle()
-        XCTAssertEqual(result.outcome, .idle)
+        XCTAssertEqual(result.outcome, RuntimeActionCycleResult.Outcome.idle)
         XCTAssertNil(result.actionID)
         XCTAssertEqual((await transport.requests()).count, 1)
     }
