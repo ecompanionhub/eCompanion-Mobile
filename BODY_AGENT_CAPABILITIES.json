@@ -1,0 +1,79 @@
+{
+  "schema": "ecompanion.body-agent-capabilities/v1",
+  "authority": {
+    "identity": "runtime",
+    "memory": "runtime",
+    "action_policy": "runtime_scoped",
+    "device_execution": "body_agent",
+    "integration_execution": "integration_adapter"
+  },
+  "levels": {
+    "stock": "available through documented platform APIs or app-owned resources",
+    "integration": "available through a remote/self-hosted service adapter",
+    "elevated": "requires privileges outside the stock app sandbox and must never be assumed"
+  },
+  "capabilities": {
+    "presence": [
+      "presence.publish",
+      "presence.observe_local"
+    ],
+    "audio": [
+      "audio.capture",
+      "audio.playback",
+      "audio.wake_word",
+      "audio.stt",
+      "audio.tts"
+    ],
+    "camera": [
+      "camera.capture",
+      "camera.stream"
+    ],
+    "calls": [
+      "call.audio",
+      "call.video",
+      "call.webrtc",
+      "call.signal"
+    ],
+    "messaging": [
+      "message.send",
+      "message.receive",
+      "message.media.send",
+      "message.media.receive"
+    ],
+    "transports": [
+      "transport.telegram",
+      "transport.discord",
+      "transport.runtime",
+      "transport.local_grid"
+    ],
+    "device": [
+      "device.display.present",
+      "device.screen.attention",
+      "device.open_url",
+      "device.shortcut.invoke",
+      "device.location",
+      "device.motion",
+      "device.clipboard",
+      "device.files.app_owned"
+    ],
+    "elevated": [
+      "elevated.background_daemon",
+      "elevated.springboard",
+      "elevated.screen.wake",
+      "elevated.app.launch",
+      "elevated.app.control",
+      "elevated.notification.observe",
+      "elevated.system.event.observe"
+    ]
+  },
+  "rules": {
+    "capability_negotiation_required": true,
+    "unsupported_capability_must_fail_closed": true,
+    "integration_names_must_not_define_core_identity": true,
+    "transport_adapters_are_replaceable": true,
+    "device_may_not_select_companion_identity": true,
+    "arbitrary_shell_execution": false,
+    "credential_scope_required_per_action": true,
+    "elevated_capabilities_default": "unavailable"
+  }
+}
