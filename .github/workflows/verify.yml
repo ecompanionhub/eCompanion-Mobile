@@ -35,6 +35,8 @@ jobs:
           js = Path('web/app.js').read_text()
           voice = Path('web/voice.js').read_text()
           sw = Path('web/sw.js').read_text()
+          runtime_client = Path('native/BodyAgentCore/Sources/BodyAgentCore/RuntimeActionClient.swift').read_text()
+          json_value = Path('native/BodyAgentCore/Sources/BodyAgentCore/JSONValue.swift').read_text()
 
           required_ids = [
               'pairBtn', 'connectBtn', 'syncDeviceBtn', 'availableBtn',
@@ -91,6 +93,14 @@ jobs:
           assert 'fetch(' not in voice
           assert "'./voice.js'" in sw
 
+          assert '/api/v1/body/actions/claim' in runtime_client
+          assert '/complete' in runtime_client
+          assert '/api/v1/body/device' in runtime_client
+          assert 'Bearer ' in runtime_client
+          assert 'JSONValue' in runtime_client
+          assert 'enum JSONValue' in json_value
+          assert 'process' not in runtime_client
+
           assert boundaries['pairing']['relink_client_device_id_authority'] is False
           assert boundaries['authority']['relink_device_identity'] == 'runtime_returned_existing_device_only'
           assert boundaries['voice']['paid_provider_required'] is False
@@ -99,11 +109,16 @@ jobs:
           assert boundaries['platform_independence']['native_body_agent_required'] is True
           assert boundaries['body_agent']['native_core'] == 'native/BodyAgentCore'
           assert boundaries['body_agent']['execution_tiers'] == ['stock', 'integration', 'elevated']
+          assert boundaries['body_agent']['runtime_command_cycle'] == 'claim_execute_complete'
+          assert boundaries['body_agent']['runtime_command_arguments'] == 'structured_json'
+          assert boundaries['body_agent']['busy_polling'] == 'forbidden'
           assert capabilities['rules']['unsupported_capability_must_fail_closed'] is True
           assert capabilities['rules']['elevated_capabilities_default'] == 'unavailable'
           assert 'transport.telegram' in capabilities['capabilities']['transports']
           assert 'transport.discord' in capabilities['capabilities']['transports']
           assert 'voice_bypass_runtime_conversation' in boundaries['forbidden']
+          assert 'cross_device_action_claim' in boundaries['forbidden']
+          assert 'busy_polling_action_loop' in boundaries['forbidden']
           print('mobile boundary/static gate: PASS')
           PY
 

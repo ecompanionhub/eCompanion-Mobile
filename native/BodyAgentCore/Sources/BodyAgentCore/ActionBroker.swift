@@ -4,13 +4,13 @@ public struct BodyActionRequest: Sendable, Equatable {
     public let id: UUID
     public let capability: String
     public let operation: String
-    public let arguments: [String: String]
+    public let arguments: [String: JSONValue]
 
     public init(
         id: UUID = UUID(),
         capability: String,
         operation: String,
-        arguments: [String: String] = [:]
+        arguments: [String: JSONValue] = [:]
     ) {
         self.id = id
         self.capability = capability
@@ -22,9 +22,9 @@ public struct BodyActionRequest: Sendable, Equatable {
 public struct BodyActionResult: Sendable, Equatable {
     public let requestID: UUID
     public let capability: String
-    public let output: [String: String]
+    public let output: [String: JSONValue]
 
-    public init(requestID: UUID, capability: String, output: [String: String] = [:]) {
+    public init(requestID: UUID, capability: String, output: [String: JSONValue] = [:]) {
         self.requestID = requestID
         self.capability = capability
         self.output = output
