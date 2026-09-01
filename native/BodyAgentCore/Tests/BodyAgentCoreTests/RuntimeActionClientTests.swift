@@ -191,6 +191,7 @@ final class RuntimeActionClientTests: XCTestCase {
         let result = try await runtime.runOneCycle()
         XCTAssertEqual(result.outcome, RuntimeActionCycleResult.Outcome.idle)
         XCTAssertNil(result.actionID)
-        XCTAssertEqual((await transport.requests()).count, 1)
+        let requests = await transport.requests()
+        XCTAssertEqual(requests.count, 1)
     }
 }
