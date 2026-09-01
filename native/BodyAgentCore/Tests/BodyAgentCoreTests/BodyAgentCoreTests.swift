@@ -8,7 +8,7 @@ private struct EchoExecutor: BodyActionExecutor {
         BodyActionResult(
             requestID: request.id,
             capability: request.capability,
-            output: ["operation": request.operation]
+            output: ["operation": .string(request.operation)]
         )
     }
 }
@@ -29,7 +29,7 @@ final class BodyAgentCoreTests: XCTestCase {
         try await broker.setAvailability(.available, for: "audio.capture")
         let result = try await broker.execute(request)
         XCTAssertEqual(result.capability, "audio.capture")
-        XCTAssertEqual(result.output["operation"], "start")
+        XCTAssertEqual(result.output["operation"]?.stringValue, "start")
     }
 
     func testUnknownAndElevatedCapabilitiesAreNeverImplicitlyGranted() async throws {
