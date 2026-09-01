@@ -1,3 +1,5 @@
+import { createVoiceAdapter } from './voice.js';
+
 const $ = (id) => document.getElementById(id);
 
 const output = $('output');
@@ -9,13 +11,17 @@ const chatTitle = $('chatTitle');
 const chatMeta = $('chatMeta');
 const chatInput = $('chatInput');
 const sendBtn = $('sendBtn');
+const voiceBtn = $('voiceBtn');
+const speakToggle = $('speakToggle');
+const voiceState = $('voiceState');
 
 const STORAGE = Object.freeze({
   deviceId: 'ecompanion.device_id',
   runtimeBase: 'ecompanion.runtime_base',
   deviceLabel: 'ecompanion.device_label',
   deviceToken: 'ecompanion.device_token',
-  credentialId: 'ecompanion.credential_id'
+  credentialId: 'ecompanion.credential_id',
+  speakReplies: 'ecompanion.voice.speak_replies'
 });
 
 const savedDeviceId = localStorage.getItem(STORAGE.deviceId);
@@ -60,21 +66,52 @@ if (pendingRelinkCode) {
   $('pairBtn').textContent = 'Reconnect body';
 }
 
+const voiceAdapter = createVoiceAdapter({
+  language: navigator.language || 'en-US',
+  onTranscript: async (transcript) => {
+    chatInput.value = transcript;
+    await run(() => sendChatContent(transcript, { clearInput: true }))
+      .catch((error) => renderChatError(error));
+  },
+  onState: ({ listening, speakReplies, text }) => {
+    voiceBtn.textContent = listening ? 'Stop' : 'Talk';
+    voiceBtn.classList.toggle('voice-listening', listening);
+    voiceBtn.setAttribute('aria-pressed', listening ? 'true' : 'false');
+    speakToggle.textContent = speakReplies ? 'Replies on' : 'Replies off';
+    speakToggle.setAttribute('aria-pressed', speakReplies ? 'true' : 'false');
+    voiceState.textContent = text;
+  }
+});
+
+const savedSpeakReplies = localStorage.getItem(STORAGE.speakReplies);
+voiceAdapter.setSpeakReplies(savedSpeakReplies !== 'false');
+
 function detectCapabilities() {
+  const voiceCapabilities = voiceAdapter.capabilities();
   return Object.freeze({
     display: true,
-    audio_output: typeof Audio !== 'undefined',
+    audio_output: typeof Audio !== 'undefined' || voiceCapabilities.speech_synthesis,
     microphone: Boolean(navigator.mediaDevices?.getUserMedia),
     camera: Boolean(navigator.mediaDevices?.getUserMedia),
     webrtc: typeof RTCPeerConnection !== 'undefined',
     notifications: 'Notification' in window,
     web_push: 'PushManager' in window && 'serviceWorker' in navigator,
     service_worker: 'serviceWorker' in navigator,
-    standalone: window.matchMedia?.('(display-mode: standalone)').matches || Boolean(navigator.standalone)
+    standalone: window.matchMedia?.('(display-mode: standalone)').matches || Boolean(navigator.standalone),
+    ...voiceCapabilities
   });
 }
 
 const capabilities = detectCapabilities();
+voiceBtn.disabled = !capabilities.speech_recognition;
+speakToggle.disabled = !capabilities.speech_synthesis;
+if (!capabilities.speech_recognition && capabilities.speech_synthesis) {
+  voiceState.textContent = 'Talk unavailable here · spoken replies available';
+} else if (!capabilities.speech_recognition && !capabilities.speech_synthesis) {
+  voiceState.textContent = 'Browser voice adapter unavailable';
+} else {
+  voiceState.textContent = 'Voice ready';
+}
 
 function renderCapabilities() {
   capabilitiesEl.replaceChildren();
@@ -280,6 +317,33 @@ async function refreshSelf() {
   return result;
 }
 
+async function sendChatContent(value, { clearInput = false } = {}) {
+  const content = String(value || '').trim();
+  if (!content) throw new Error('Message is empty');
+
+  sendBtn.disabled = true;
+  chatInput.disabled = true;
+  voiceBtn.disabled = true;
+  try {
+    const result = await bodyRequest('/api/v1/body/chat/turn', {
+      method: 'POST',
+      body: { content }
+    });
+    if (clearInput || chatInput.value.trim() === content) chatInput.value = '';
+    setStatus(true, 'Chat connected');
+    await loadChat();
+    setPresence('available').catch(() => null);
+    const assistantText = result.chat?.turn?.assistantMessage?.content;
+    if (assistantText) voiceAdapter.speak(assistantText);
+    return result;
+  } finally {
+    sendBtn.disabled = false;
+    chatInput.disabled = false;
+    voiceBtn.disabled = !capabilities.speech_recognition;
+    chatInput.focus();
+  }
+}
+
 $('pairBtn').addEventListener('click', () => run(async () => {
   const code = $('pairingCode').value.trim();
   if (!code) throw new Error('Pairing code is required');
@@ -354,30 +418,34 @@ $('refreshChatBtn').addEventListener('click', () => run(() => loadChat()).catch(
 
 $('chatForm').addEventListener('submit', (event) => {
   event.preventDefault();
-  run(async () => {
-    const content = chatInput.value.trim();
-    if (!content) throw new Error('Message is empty');
-    sendBtn.disabled = true;
-    chatInput.disabled = true;
-    try {
-      const result = await bodyRequest('/api/v1/body/chat/turn', {
-        method: 'POST',
-        body: { content }
-      });
-      chatInput.value = '';
-      setStatus(true, 'Chat connected');
-      await loadChat();
-      setPresence('available').catch(() => null);
-      return result;
-    } finally {
-      sendBtn.disabled = false;
-      chatInput.disabled = false;
-      chatInput.focus();
-    }
-  }).catch((error) => renderChatError(error));
+  run(() => sendChatContent(chatInput.value, { clearInput: true }))
+    .catch((error) => renderChatError(error));
+});
+
+voiceBtn.addEventListener('click', () => {
+  if (!currentToken()) {
+    const error = new Error('Pair this body before using voice');
+    renderChatError(error);
+    show({ ok: false, error: error.message });
+    return;
+  }
+  try {
+    voiceAdapter.toggleListening();
+  } catch (error) {
+    voiceState.textContent = error.message;
+    show({ ok: false, error: error.message });
+  }
+});
+
+speakToggle.addEventListener('click', () => {
+  const enabled = !voiceAdapter.speakRepliesEnabled();
+  localStorage.setItem(STORAGE.speakReplies, enabled ? 'true' : 'false');
+  voiceAdapter.setSpeakReplies(enabled);
 });
 
 $('forgetBtn').addEventListener('click', () => {
+  voiceAdapter.stopListening();
+  voiceAdapter.stopSpeaking();
   localStorage.removeItem(STORAGE.deviceToken);
   localStorage.removeItem(STORAGE.credentialId);
   setStatus(false, 'Pairing removed from this browser');
@@ -387,6 +455,7 @@ $('forgetBtn').addEventListener('click', () => {
 });
 
 document.addEventListener('visibilitychange', () => {
+  if (document.visibilityState !== 'visible') voiceAdapter.stopListening();
   if (!currentToken()) return;
   const state = document.visibilityState === 'visible' ? 'available' : 'away';
   setPresence(state).catch(() => null);
