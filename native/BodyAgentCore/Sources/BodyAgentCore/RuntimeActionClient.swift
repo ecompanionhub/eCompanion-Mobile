@@ -55,7 +55,7 @@ public struct RuntimeQueuedAction: Codable, Sendable, Equatable {
     public let actorID: String?
     public let capability: String
     public let operation: String
-    public let arguments: [String: String]
+    public let arguments: [String: JSONValue]
     public let state: String
 
     enum CodingKeys: String, CodingKey {
@@ -102,7 +102,7 @@ private struct DeviceSyncPayload: Codable {
     let label: String
     let platform: String
     let capabilities: CapabilityEnvelope
-    let metadata: [String: String]
+    let metadata: [String: JSONValue]
 }
 
 private struct ActionClaimEnvelope: Codable {
@@ -112,7 +112,7 @@ private struct ActionClaimEnvelope: Codable {
 
 private struct ActionCompletionPayload: Codable {
     let success: Bool
-    let result: [String: String]
+    let result: [String: JSONValue]
     let error: String?
 }
 
@@ -137,7 +137,7 @@ public actor RuntimeActionClient {
         self.broker = broker
     }
 
-    public func syncCapabilities(metadata: [String: String] = [:]) async throws {
+    public func syncCapabilities(metadata: [String: JSONValue] = [:]) async throws {
         let snapshot = await broker.snapshot()
         let payload = DeviceSyncPayload(
             label: configuration.deviceLabel,
@@ -165,7 +165,7 @@ public actor RuntimeActionClient {
     public func complete(
         actionID: UUID,
         success: Bool,
-        result: [String: String] = [:],
+        result: [String: JSONValue] = [:],
         error: String? = nil
     ) async throws {
         let payload = ActionCompletionPayload(success: success, result: result, error: error)
