@@ -12,6 +12,8 @@
     "relink_device_identity": "runtime_returned_existing_device_only",
     "body_action_policy": "runtime_scoped_deny_by_default",
     "body_action_execution": "native_body_agent",
+    "body_action_claim": "credential_bound_self_only",
+    "body_action_completion": "credential_bound_self_only",
     "integration_execution": "replaceable_adapter"
   },
   "platform_independence": {
@@ -29,6 +31,7 @@
     "client_may_supply_actor_id": false,
     "root_bearer_entry_in_body_ui": false,
     "local_secret_class": "device_scoped_credential_only",
+    "native_secret_storage_target": "keychain",
     "relink_method": "owner_created_one_time_grant",
     "relink_code_transport": "url_fragment_or_manual_entry",
     "relink_code_removed_from_url_after_boot": true,
@@ -53,7 +56,12 @@
     "arbitrary_shell_execution": false,
     "communication_intent": "transport_neutral",
     "messaging_transports": ["telegram", "discord", "runtime", "local_grid"],
-    "call_transport": "self_hostable_webrtc"
+    "call_transport": "self_hostable_webrtc",
+    "runtime_command_transport": "scoped_body_http",
+    "runtime_command_arguments": "structured_json",
+    "runtime_command_cycle": "claim_execute_complete",
+    "busy_polling": "forbidden",
+    "capability_snapshot_sync": "required_before_dispatchable_execution"
   },
   "forbidden": [
     "hardcoded_companion_identity_in_client_core",
@@ -62,6 +70,9 @@
     "client_selected_actor_authority",
     "client_selected_companion_chat_authority",
     "client_selected_relink_device_authority",
+    "cross_device_action_claim",
+    "cross_device_action_completion",
+    "busy_polling_action_loop",
     "voice_bypass_runtime_conversation",
     "voice_adapter_selected_companion_authority",
     "integration_specific_companion_identity",
