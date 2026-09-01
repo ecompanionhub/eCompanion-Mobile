@@ -1,5 +1,5 @@
-const CACHE = 'ecompanion-body-v1';
-const SHELL = ['./', './index.html', './app.js', './manifest.webmanifest'];
+const CACHE = 'ecompanion-body-v2';
+const SHELL = ['./', './index.html', './app.js', './voice.js', './manifest.webmanifest'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(SHELL)));
