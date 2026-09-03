@@ -26,6 +26,7 @@ jobs:
         run: |
           python3 - <<'PY'
           import json
+          import plistlib
           from pathlib import Path
 
           boundaries = json.loads(Path('ECOMPANION_MOBILE_BOUNDARIES.json').read_text())
@@ -119,6 +120,11 @@ jobs:
           assert 'voice_bypass_runtime_conversation' in boundaries['forbidden']
           assert 'cross_device_action_claim' in boundaries['forbidden']
           assert 'busy_polling_action_loop' in boundaries['forbidden']
+
+          native_info = plistlib.loads(Path('native/ECompanionBodyApp/ECompanionBodyApp/Info.plist').read_bytes())
+          background_modes = set(native_info.get('UIBackgroundModes', []))
+          assert {'audio', 'voip'} <= background_modes, f'native call background modes missing: {background_modes}'
+          assert native_info.get('NSMicrophoneUsageDescription'), 'native microphone usage description missing'
           print('mobile boundary/static gate: PASS')
           PY
 
@@ -133,5 +139,7 @@ jobs:
       - name: Build native body agent core for iOS Simulator
         working-directory: native/BodyAgentCore
         run: xcodebuild -scheme BodyAgentCore -destination 'generic/platform=iOS Simulator' -configuration Debug CODE_SIGNING_ALLOWED=NO build
+      - name: Build native eCompanion body app for iOS Simulator
+        run: xcodebuild -project native/ECompanionBodyApp/ECompanionBodyApp.xcodeproj -scheme ECompanionBodyApp -destination 'generic/platform=iOS Simulator' -configuration Debug CODE_SIGNING_ALLOWED=NO build
       - name: Test native body agent core
         run: swift test --package-path native/BodyAgentCore
