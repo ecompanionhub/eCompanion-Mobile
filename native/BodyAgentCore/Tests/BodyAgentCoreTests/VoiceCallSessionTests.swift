@@ -77,7 +77,8 @@ final class VoiceCallSessionTests: XCTestCase {
         _ = try await call.connected()
         let ended = try await call.end()
         XCTAssertEqual(ended.state, .ended)
-        XCTAssertEqual(try await call.end().state, .ended)
+        let endedAgain = try await call.end()
+        XCTAssertEqual(endedAgain.state, .ended)
 
         await XCTAssertThrowsErrorAsync(try await call.nextAudioChunk(byteCount: 320, voiceActivity: true)) { error in
             XCTAssertEqual(error as? VoiceCallSessionError, .callEnded)
