@@ -27,6 +27,7 @@ public struct VoiceAudioSessionPolicy: Sendable, Equatable {
 public actor IOSVoiceAudioSession {
     private let policy: VoiceAudioSessionPolicy
     private let audioSession: AVAudioSession
+    private var configured = false
     private var active = false
 
     public init(policy: VoiceAudioSessionPolicy = .voiceCall) {
@@ -34,8 +35,11 @@ public actor IOSVoiceAudioSession {
         self.audioSession = AVAudioSession.sharedInstance()
     }
 
-    public func activate() throws {
-        if active { return }
+    /// Configures the session for a VoIP call without activating it. When CallKit
+    /// owns the call lifecycle, CallKit activates the audio session and reports
+    /// that transition through CXProviderDelegate.
+    public func configureForCallKit() throws {
+        if configured { return }
         try audioSession.setCategory(
             .playAndRecord,
             mode: .voiceChat,
@@ -43,6 +47,14 @@ public actor IOSVoiceAudioSession {
         )
         try audioSession.setPreferredSampleRate(policy.sampleRate)
         try audioSession.setPreferredIOBufferDuration(policy.preferredIOBufferDuration)
+        configured = true
+    }
+
+    /// Direct activation remains available for non-CallKit call transports.
+    /// The native iOS app uses configureForCallKit() and lets CallKit activate.
+    public func activate() throws {
+        if active { return }
+        try configureForCallKit()
         try audioSession.setActive(true)
         active = true
     }
@@ -51,6 +63,18 @@ public actor IOSVoiceAudioSession {
         if !active { return }
         try audioSession.setActive(false, options: [.notifyOthersOnDeactivation])
         active = false
+    }
+
+    public func callKitDidActivate() {
+        active = true
+    }
+
+    public func callKitDidDeactivate() {
+        active = false
+    }
+
+    public func isConfigured() -> Bool {
+        configured
     }
 
     public func isActive() -> Bool {

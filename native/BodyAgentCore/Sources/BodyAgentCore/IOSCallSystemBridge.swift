@@ -1,6 +1,7 @@
 import Foundation
 
 #if os(iOS)
+@preconcurrency import AVFAudio
 @preconcurrency import CallKit
 @preconcurrency import PushKit
 
@@ -36,6 +37,8 @@ public protocol IOSCallSystemBridgeDelegate: AnyObject {
     func callSystemBridge(_ bridge: IOSCallSystemBridge, didReceive descriptor: IOSIncomingCallDescriptor)
     func callSystemBridge(_ bridge: IOSCallSystemBridge, didRequestAnswer callID: UUID)
     func callSystemBridge(_ bridge: IOSCallSystemBridge, didRequestEnd callID: UUID)
+    func callSystemBridgeAudioDidActivate(_ bridge: IOSCallSystemBridge)
+    func callSystemBridgeAudioDidDeactivate(_ bridge: IOSCallSystemBridge)
     func callSystemBridgeDidReset(_ bridge: IOSCallSystemBridge)
 }
 
@@ -46,7 +49,7 @@ public final class IOSCallSystemBridge: NSObject {
     private let callController: CXCallController
     private let pushRegistry: PKPushRegistry
 
-    public init(localizedName: String = "Lola") {
+    public init(localizedName: String = "eCompanion") {
         let configuration = CXProviderConfiguration(localizedName: localizedName)
         configuration.maximumCallGroups = 1
         configuration.maximumCallsPerCallGroup = 1
@@ -83,7 +86,7 @@ public final class IOSCallSystemBridge: NSObject {
 
     public func startOutgoingCall(
         callID: UUID,
-        handle: String = "Lola",
+        handle: String = "eCompanion",
         hasVideo: Bool = false,
         completion: @escaping (Error?) -> Void
     ) {
@@ -118,8 +121,8 @@ public final class IOSCallSystemBridge: NSObject {
         let displayName = (payload["display_name"] as? String)?.trimmingCharacters(in: .whitespacesAndNewlines)
         return IOSIncomingCallDescriptor(
             callID: callID,
-            handle: handle?.isEmpty == false ? handle! : "Lola",
-            displayName: displayName?.isEmpty == false ? displayName! : "Lola",
+            handle: handle?.isEmpty == false ? handle! : "eCompanion",
+            displayName: displayName?.isEmpty == false ? displayName! : "eCompanion",
             conversationID: conversationID,
             hasVideo: payload["has_video"] as? Bool ?? false
         )
@@ -155,6 +158,14 @@ extension IOSCallSystemBridge: CXProviderDelegate {
     public func provider(_ provider: CXProvider, perform action: CXEndCallAction) {
         delegate?.callSystemBridge(self, didRequestEnd: action.callUUID)
         action.fulfill()
+    }
+
+    public func provider(_ provider: CXProvider, didActivate audioSession: AVAudioSession) {
+        delegate?.callSystemBridgeAudioDidActivate(self)
+    }
+
+    public func provider(_ provider: CXProvider, didDeactivate audioSession: AVAudioSession) {
+        delegate?.callSystemBridgeAudioDidDeactivate(self)
     }
 }
 
