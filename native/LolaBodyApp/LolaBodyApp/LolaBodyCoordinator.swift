@@ -1,4 +1,6 @@
 import BodyAgentCore
+import CallKit
+import Combine
 import Foundation
 
 final class LolaBodyCoordinator: NSObject, ObservableObject, @unchecked Sendable {
