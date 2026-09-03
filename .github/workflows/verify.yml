@@ -40,6 +40,7 @@ jobs:
           json_value = Path('native/BodyAgentCore/Sources/BodyAgentCore/JSONValue.swift').read_text()
           ios_info_path = Path('native/LolaBodyApp/LolaBodyApp/Info.plist')
           ios_entitlements_path = Path('native/LolaBodyApp/LolaBodyApp/LolaBodyApp.entitlements')
+          ios_scheme_path = Path('native/LolaBodyApp/LolaBodyApp.xcodeproj/xcshareddata/xcschemes/LolaBodyApp.xcscheme')
 
           required_ids = [
               'pairBtn', 'connectBtn', 'syncDeviceBtn', 'availableBtn',
@@ -113,6 +114,7 @@ jobs:
           assert ios_entitlements_path.exists(), 'native iOS body entitlements missing'
           ios_entitlements = plistlib.loads(ios_entitlements_path.read_bytes())
           assert ios_entitlements.get('aps-environment') == 'development'
+          assert ios_scheme_path.exists(), 'shared LolaBodyApp scheme missing'
 
           assert boundaries['pairing']['relink_client_device_id_authority'] is False
           assert boundaries['authority']['relink_device_identity'] == 'runtime_returned_existing_device_only'
@@ -147,6 +149,6 @@ jobs:
         working-directory: native/BodyAgentCore
         run: xcodebuild -scheme BodyAgentCore -destination 'generic/platform=iOS Simulator' -configuration Debug CODE_SIGNING_ALLOWED=NO build
       - name: Build installable Lola iOS body host for Simulator
-        run: xcodebuild -project native/LolaBodyApp/LolaBodyApp.xcodeproj -target LolaBodyApp -sdk iphonesimulator -configuration Debug CODE_SIGNING_ALLOWED=NO build
+        run: xcodebuild -project native/LolaBodyApp/LolaBodyApp.xcodeproj -scheme LolaBodyApp -destination 'generic/platform=iOS Simulator' -configuration Debug CODE_SIGNING_ALLOWED=NO build
       - name: Test native body agent core
         run: swift test --package-path native/BodyAgentCore
