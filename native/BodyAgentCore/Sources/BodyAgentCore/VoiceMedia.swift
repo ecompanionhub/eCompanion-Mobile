@@ -70,6 +70,7 @@ public enum VoiceMediaError: Error, Sendable, Equatable {
     case invalidFormat
     case invalidPCMByteCount
     case callNotReady
+    case invalidBufferCapacity
 }
 
 public enum VoicePCM16 {
@@ -144,5 +145,52 @@ public actor VoiceMediaSequencer {
             format: captured.format,
             payload: captured.payload
         )
+    }
+}
+
+public protocol VoiceMediaTransportSink: Sendable {
+    func send(_ frame: VoiceTransportAudioFrame) async throws
+}
+
+public actor BufferedVoiceMediaTransportSink: VoiceMediaTransportSink {
+    private let capacity: Int
+    private var frames: [VoiceTransportAudioFrame] = []
+    private var droppedFrameCount = 0
+
+    public init(capacity: Int = 64) throws {
+        guard capacity > 0 else { throw VoiceMediaError.invalidBufferCapacity }
+        self.capacity = capacity
+    }
+
+    public func send(_ frame: VoiceTransportAudioFrame) async throws {
+        if frames.count == capacity {
+            frames.removeFirst()
+            droppedFrameCount += 1
+        }
+        frames.append(frame)
+    }
+
+    public func drain() -> [VoiceTransportAudioFrame] {
+        defer { frames.removeAll(keepingCapacity: true) }
+        return frames
+    }
+
+    public func snapshot() -> (buffered: Int, dropped: Int) {
+        (frames.count, droppedFrameCount)
+    }
+}
+
+public actor VoiceMediaCapturePipeline {
+    private let sequencer: VoiceMediaSequencer
+    private let sink: any VoiceMediaTransportSink
+
+    public init(session: VoiceCallSession, sink: any VoiceMediaTransportSink) {
+        self.sequencer = VoiceMediaSequencer(session: session)
+        self.sink = sink
+    }
+
+    public func accept(_ captured: VoiceCapturedAudioFrame) async throws {
+        let frame = try await sequencer.transportFrame(from: captured)
+        try await sink.send(frame)
     }
 }
