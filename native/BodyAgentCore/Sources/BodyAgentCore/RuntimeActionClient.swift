@@ -69,6 +69,23 @@ public struct RuntimeQueuedAction: Codable, Sendable, Equatable {
     }
 }
 
+public enum RuntimeVoipEnvironment: String, Codable, Sendable, Equatable {
+    case sandbox
+    case production
+}
+
+public struct RuntimeVoipRegistration: Sendable, Equatable {
+    public let tokenHex: String
+    public let bundleID: String
+    public let environment: RuntimeVoipEnvironment
+
+    public init(tokenHex: String, bundleID: String, environment: RuntimeVoipEnvironment) {
+        self.tokenHex = tokenHex
+        self.bundleID = bundleID
+        self.environment = environment
+    }
+}
+
 public struct RuntimeActionCycleResult: Sendable, Equatable {
     public enum Outcome: Sendable, Equatable {
         case idle
@@ -92,6 +109,8 @@ public enum RuntimeActionClientError: Error, Sendable, Equatable {
     case invalidHTTPResponse
     case runtimeRejected(status: Int, code: String)
     case invalidPayload
+    case invalidVoipToken
+    case invalidVoipBundleID
 }
 
 private struct CapabilityEnvelope: Codable {
@@ -103,6 +122,12 @@ private struct DeviceSyncPayload: Codable {
     let platform: String
     let capabilities: CapabilityEnvelope
     let metadata: [String: JSONValue]
+}
+
+private struct VoipRegistrationPayload: Codable {
+    let token: String
+    let bundleId: String
+    let environment: RuntimeVoipEnvironment
 }
 
 private struct ActionClaimEnvelope: Codable {
@@ -150,6 +175,54 @@ public actor RuntimeActionClient {
             method: "PUT",
             body: encoder.encode(payload)
         )
+        _ = try await acceptedResponse(for: request, accepted: 200...299)
+    }
+
+    public func registerVoip(_ registration: RuntimeVoipRegistration) async throws {
+        let token = registration.tokenHex.trimmingCharacters(in: .whitespacesAndNewlines).lowercased()
+        guard
+            token.count >= 32,
+            token.count <= 512,
+            token.count.isMultiple(of: 2),
+            token.unicodeScalars.allSatisfy({ scalar in
+                (scalar.value >= 48 && scalar.value <= 57)
+                    || (scalar.value >= 97 && scalar.value <= 102)
+            })
+        else {
+            throw RuntimeActionClientError.invalidVoipToken
+        }
+
+        let bundle = registration.bundleID.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard
+            bundle.count >= 3,
+            bundle.count <= 255,
+            !bundle.contains(".."),
+            bundle.unicodeScalars.allSatisfy({ scalar in
+                (scalar.value >= 48 && scalar.value <= 57)
+                    || (scalar.value >= 65 && scalar.value <= 90)
+                    || (scalar.value >= 97 && scalar.value <= 122)
+                    || scalar.value == 45
+                    || scalar.value == 46
+            })
+        else {
+            throw RuntimeActionClientError.invalidVoipBundleID
+        }
+
+        let payload = VoipRegistrationPayload(
+            token: token,
+            bundleId: bundle,
+            environment: registration.environment
+        )
+        let request = try makeRequest(
+            path: "/api/v1/body/voip",
+            method: "PUT",
+            body: encoder.encode(payload)
+        )
+        _ = try await acceptedResponse(for: request, accepted: 200...299)
+    }
+
+    public func clearVoip() async throws {
+        let request = try makeRequest(path: "/api/v1/body/voip", method: "DELETE")
         _ = try await acceptedResponse(for: request, accepted: 200...299)
     }
 
