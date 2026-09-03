@@ -26,6 +26,7 @@ jobs:
         run: |
           python3 - <<'PY'
           import json
+          import plistlib
           from pathlib import Path
 
           boundaries = json.loads(Path('ECOMPANION_MOBILE_BOUNDARIES.json').read_text())
@@ -37,6 +38,8 @@ jobs:
           sw = Path('web/sw.js').read_text()
           runtime_client = Path('native/BodyAgentCore/Sources/BodyAgentCore/RuntimeActionClient.swift').read_text()
           json_value = Path('native/BodyAgentCore/Sources/BodyAgentCore/JSONValue.swift').read_text()
+          ios_info_path = Path('native/LolaBodyApp/LolaBodyApp/Info.plist')
+          ios_entitlements_path = Path('native/LolaBodyApp/LolaBodyApp/LolaBodyApp.entitlements')
 
           required_ids = [
               'pairBtn', 'connectBtn', 'syncDeviceBtn', 'availableBtn',
@@ -101,6 +104,16 @@ jobs:
           assert 'enum JSONValue' in json_value
           assert 'process' not in runtime_client
 
+          assert ios_info_path.exists(), 'native iOS body Info.plist missing'
+          ios_info = plistlib.loads(ios_info_path.read_bytes())
+          modes = set(ios_info.get('UIBackgroundModes', []))
+          assert {'audio', 'voip', 'remote-notification'} <= modes
+          assert ios_info.get('NSMicrophoneUsageDescription')
+          assert ios_info.get('NSCameraUsageDescription')
+          assert ios_entitlements_path.exists(), 'native iOS body entitlements missing'
+          ios_entitlements = plistlib.loads(ios_entitlements_path.read_bytes())
+          assert ios_entitlements.get('aps-environment') == 'development'
+
           assert boundaries['pairing']['relink_client_device_id_authority'] is False
           assert boundaries['authority']['relink_device_identity'] == 'runtime_returned_existing_device_only'
           assert boundaries['voice']['paid_provider_required'] is False
@@ -133,5 +146,7 @@ jobs:
       - name: Build native body agent core for iOS Simulator
         working-directory: native/BodyAgentCore
         run: xcodebuild -scheme BodyAgentCore -destination 'generic/platform=iOS Simulator' -configuration Debug CODE_SIGNING_ALLOWED=NO build
+      - name: Build installable Lola iOS body host for Simulator
+        run: xcodebuild -project native/LolaBodyApp/LolaBodyApp.xcodeproj -target LolaBodyApp -sdk iphonesimulator -configuration Debug CODE_SIGNING_ALLOWED=NO build
       - name: Test native body agent core
         run: swift test --package-path native/BodyAgentCore
