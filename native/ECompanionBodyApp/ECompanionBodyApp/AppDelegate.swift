@@ -6,9 +6,18 @@ import BodyAgentCore
 final class AppDelegate: UIResponder, UIApplicationDelegate, IOSCallSystemBridgeDelegate {
     var window: UIWindow?
 
+    private static let pendingVoipTokenKey = "ecompanion.pending_voip_token"
+    private static let nativeDeviceIDKey = "ecompanion.native.device_id"
+
     private let voiceAudioSession = IOSVoiceAudioSession()
     private let voiceMediaEngine = IOSVoiceMediaEngine()
+    private let credentialStore = IOSRuntimeCredentialStore()
+    private let enrollmentStore = UserDefaultsRuntimeEnrollmentProfileStore()
+    private let runtimeBroker = BodyActionBroker()
+
     private var callSystemBridge: IOSCallSystemBridge?
+    private var runtimeClient: RuntimeActionClient?
+    private var enrollmentProfile: RuntimeEnrollmentProfile?
     private var incomingCalls: [UUID: IOSIncomingCallDescriptor] = [:]
     private var sessions: [UUID: VoiceCallSession] = [:]
     private var mediaPipelines: [UUID: VoiceMediaCapturePipeline] = [:]
@@ -31,12 +40,17 @@ final class AppDelegate: UIResponder, UIApplicationDelegate, IOSCallSystemBridge
         }
 
         let status = BodyStatusViewController()
+        status.onPairRequested = { [weak self] runtimeText, code in
+            self?.pairNativeBody(runtimeText: runtimeText, code: code)
+        }
         statusViewController = status
         let navigation = UINavigationController(rootViewController: status)
         let window = UIWindow(frame: UIScreen.main.bounds)
         window.rootViewController = navigation
         window.makeKeyAndVisible()
         self.window = window
+
+        restoreEnrollment()
 
         Task { [weak self] in
             do {
@@ -47,19 +61,39 @@ final class AppDelegate: UIResponder, UIApplicationDelegate, IOSCallSystemBridge
             }
         }
 
-        status.setVoIPRegistrationState(bridge.currentVoIPToken() == nil ? "registering" : "registered")
+        if bridge.currentVoIPToken() == nil {
+            status.setVoIPRegistrationState("requesting PushKit token")
+        } else {
+            status.setVoIPRegistrationState("PushKit token available")
+            attemptVoipRegistration()
+        }
         return true
+    }
+
+    func applicationDidBecomeActive(_ application: UIApplication) {
+        attemptVoipRegistration()
     }
 
     func callSystemBridge(_ bridge: IOSCallSystemBridge, didUpdateVoIPToken token: Data) {
         let tokenHex = token.map { String(format: "%02x", $0) }.joined()
-        UserDefaults.standard.set(tokenHex, forKey: "ecompanion.pending_voip_token")
-        statusViewController?.setVoIPRegistrationState("registered")
+        UserDefaults.standard.set(tokenHex, forKey: Self.pendingVoipTokenKey)
+        statusViewController?.setVoIPRegistrationState("PushKit token received")
+        attemptVoipRegistration()
     }
 
     func callSystemBridgeDidInvalidateVoIPToken(_ bridge: IOSCallSystemBridge) {
-        UserDefaults.standard.removeObject(forKey: "ecompanion.pending_voip_token")
-        statusViewController?.setVoIPRegistrationState("invalidated")
+        UserDefaults.standard.removeObject(forKey: Self.pendingVoipTokenKey)
+        let client = runtimeClient
+        statusViewController?.setVoIPRegistrationState("PushKit token invalidated")
+        guard let client else { return }
+        Task { [weak self] in
+            do {
+                try await client.clearVoip()
+                self?.statusViewController?.setVoIPRegistrationState("Runtime registration cleared")
+            } catch {
+                self?.statusViewController?.setVoIPRegistrationState("Runtime clear pending")
+            }
+        }
     }
 
     func callSystemBridge(_ bridge: IOSCallSystemBridge, didReceive descriptor: IOSIncomingCallDescriptor) {
@@ -182,6 +216,151 @@ final class AppDelegate: UIResponder, UIApplicationDelegate, IOSCallSystemBridge
         }
     }
 
+    private func restoreEnrollment() {
+        do {
+            guard
+                let profile = try enrollmentStore.loadProfile(),
+                let credential = try credentialStore.loadCredential(),
+                !credential.isEmpty
+            else {
+                statusViewController?.setEnrollmentState("not paired")
+                return
+            }
+            configureRuntime(profile: profile, credential: credential)
+            statusViewController?.setEnrollmentRuntime(profile.runtimeBaseURL.absoluteString)
+            statusViewController?.setEnrollmentState(
+                profile.assignedActorID == nil ? "paired · no actor assigned" : "paired · actor assigned"
+            )
+        } catch {
+            runtimeClient = nil
+            enrollmentProfile = nil
+            statusViewController?.setEnrollmentState("stored enrollment unavailable")
+        }
+    }
+
+    private func pairNativeBody(runtimeText: String, code: String) {
+        let normalizedRuntime = runtimeText.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard
+            let runtimeURL = URL(string: normalizedRuntime),
+            let scheme = runtimeURL.scheme?.lowercased(),
+            (scheme == "https" || scheme == "http"),
+            runtimeURL.host != nil
+        else {
+            statusViewController?.setEnrollmentState("invalid Runtime URL")
+            return
+        }
+
+        let normalizedCode = code.trimmingCharacters(in: .whitespacesAndNewlines)
+        guard !normalizedCode.isEmpty else {
+            statusViewController?.setEnrollmentState("pairing code required")
+            return
+        }
+
+        statusViewController?.setPairingBusy(true)
+        statusViewController?.setEnrollmentState("pairing…")
+        let deviceID = stableNativeDeviceID()
+
+        Task { [weak self] in
+            guard let self else { return }
+            do {
+                let pairing = try RuntimePairingClient(baseURL: runtimeURL)
+                let result = try await pairing.claim(
+                    code: normalizedCode,
+                    device: .nativeBody(id: deviceID, label: "eCompanion Body")
+                )
+                let profile = await pairing.enrollmentProfile(from: result)
+
+                do {
+                    try self.enrollmentStore.saveProfile(profile)
+                    try self.credentialStore.saveCredential(result.credential.token)
+                } catch {
+                    try? self.enrollmentStore.clearProfile()
+                    try? self.credentialStore.clearCredential()
+                    throw error
+                }
+
+                self.configureRuntime(profile: profile, credential: result.credential.token)
+                self.statusViewController?.setEnrollmentRuntime(profile.runtimeBaseURL.absoluteString)
+                self.statusViewController?.clearPairingCode()
+                self.statusViewController?.setEnrollmentState(
+                    result.device.assignedActorID == nil
+                        ? "paired · no actor assigned"
+                        : (result.relinked ? "reconnected · actor assigned" : "paired · actor assigned")
+                )
+                self.attemptVoipRegistration()
+            } catch let error as RuntimePairingClientError {
+                self.statusViewController?.setEnrollmentState(self.pairingMessage(for: error))
+            } catch {
+                self.statusViewController?.setEnrollmentState("pairing failed")
+            }
+            self.statusViewController?.setPairingBusy(false)
+        }
+    }
+
+    private func configureRuntime(profile: RuntimeEnrollmentProfile, credential: String) {
+        enrollmentProfile = profile
+        runtimeClient = RuntimeActionClient(
+            configuration: RuntimeActionClientConfiguration(
+                baseURL: profile.runtimeBaseURL,
+                deviceCredential: credential,
+                deviceLabel: profile.deviceLabel,
+                platform: "ios-native"
+            ),
+            broker: runtimeBroker
+        )
+    }
+
+    private func attemptVoipRegistration() {
+        guard
+            let client = runtimeClient,
+            let token = UserDefaults.standard.string(forKey: Self.pendingVoipTokenKey),
+            !token.isEmpty,
+            let bundleID = Bundle.main.bundleIdentifier,
+            !bundleID.isEmpty
+        else { return }
+
+        #if DEBUG
+        let environment: RuntimeVoipEnvironment = .sandbox
+        #else
+        let environment: RuntimeVoipEnvironment = .production
+        #endif
+
+        statusViewController?.setVoIPRegistrationState("registering with Runtime…")
+        Task { [weak self] in
+            do {
+                try await client.registerVoip(
+                    RuntimeVoipRegistration(
+                        tokenHex: token,
+                        bundleID: bundleID,
+                        environment: environment
+                    )
+                )
+                self?.statusViewController?.setVoIPRegistrationState("Runtime registered")
+            } catch {
+                self?.statusViewController?.setVoIPRegistrationState("Runtime registration pending")
+            }
+        }
+    }
+
+    private func stableNativeDeviceID() -> String {
+        if let stored = UserDefaults.standard.string(forKey: Self.nativeDeviceIDKey), !stored.isEmpty {
+            return stored
+        }
+        let created = "ebody:\(UUID().uuidString.lowercased())"
+        UserDefaults.standard.set(created, forKey: Self.nativeDeviceIDKey)
+        return created
+    }
+
+    private func pairingMessage(for error: RuntimePairingClientError) -> String {
+        switch error {
+        case .runtimeRejected(_, let code): return "pairing rejected · \(code)"
+        case .invalidPairingCode: return "invalid pairing code"
+        case .invalidBaseURL: return "invalid Runtime URL"
+        case .missingCredentialToken, .invalidPayload: return "invalid Runtime pairing response"
+        default: return "pairing failed"
+        }
+    }
+
     private func refreshMediaBufferStatus() async {
         guard let outboundVoiceFrames else { return }
         let snapshot = await outboundVoiceFrames.snapshot()
@@ -192,15 +371,22 @@ final class AppDelegate: UIResponder, UIApplicationDelegate, IOSCallSystemBridge
 }
 
 @MainActor
-final class BodyStatusViewController: UIViewController {
+final class BodyStatusViewController: UIViewController, UITextFieldDelegate {
+    var onPairRequested: ((String, String) -> Void)?
+
     private let stateLabel = UILabel()
     private let detailLabel = UILabel()
+    private let runtimeField = UITextField()
+    private let pairingCodeField = UITextField()
+    private let pairButton = UIButton(type: .system)
+
     private var audioConfigured = false
     private var audioActive = false
     private var voipState = "unknown"
     private var callState = "idle"
     private var mediaState = "idle"
     private var transportState = "awaiting realtime transport"
+    private var enrollmentState = "not paired"
 
     override func viewDidLoad() {
         super.viewDidLoad()
@@ -216,9 +402,34 @@ final class BodyStatusViewController: UIViewController {
         detailLabel.textAlignment = .center
         detailLabel.numberOfLines = 0
 
-        let stack = UIStackView(arrangedSubviews: [stateLabel, detailLabel])
+        runtimeField.borderStyle = .roundedRect
+        runtimeField.placeholder = "Runtime URL"
+        runtimeField.keyboardType = .URL
+        runtimeField.textContentType = .URL
+        runtimeField.autocapitalizationType = .none
+        runtimeField.autocorrectionType = .no
+        runtimeField.delegate = self
+        runtimeField.accessibilityIdentifier = "runtimeBaseURL"
+
+        pairingCodeField.borderStyle = .roundedRect
+        pairingCodeField.placeholder = "Pairing code"
+        pairingCodeField.autocapitalizationType = .none
+        pairingCodeField.autocorrectionType = .no
+        pairingCodeField.delegate = self
+        pairingCodeField.accessibilityIdentifier = "pairingCode"
+
+        pairButton.setTitle("Pair iPhone", for: .normal)
+        pairButton.titleLabel?.font = .preferredFont(forTextStyle: .headline)
+        pairButton.addTarget(self, action: #selector(pairTapped), for: .touchUpInside)
+        pairButton.accessibilityIdentifier = "pairNativeBody"
+
+        let enrollmentStack = UIStackView(arrangedSubviews: [runtimeField, pairingCodeField, pairButton])
+        enrollmentStack.axis = .vertical
+        enrollmentStack.spacing = 10
+
+        let stack = UIStackView(arrangedSubviews: [stateLabel, detailLabel, enrollmentStack])
         stack.axis = .vertical
-        stack.spacing = 12
+        stack.spacing = 18
         stack.translatesAutoresizingMaskIntoConstraints = false
         view.addSubview(stack)
 
@@ -227,6 +438,41 @@ final class BodyStatusViewController: UIViewController {
             stack.trailingAnchor.constraint(equalTo: view.safeAreaLayoutGuide.trailingAnchor, constant: -24),
             stack.centerYAnchor.constraint(equalTo: view.centerYAnchor)
         ])
+        render()
+    }
+
+    @objc private func pairTapped() {
+        view.endEditing(true)
+        onPairRequested?(runtimeField.text ?? "", pairingCodeField.text ?? "")
+    }
+
+    func textFieldShouldReturn(_ textField: UITextField) -> Bool {
+        if textField === runtimeField {
+            pairingCodeField.becomeFirstResponder()
+        } else {
+            textField.resignFirstResponder()
+            pairTapped()
+        }
+        return true
+    }
+
+    func setPairingBusy(_ value: Bool) {
+        pairButton.isEnabled = !value
+        runtimeField.isEnabled = !value
+        pairingCodeField.isEnabled = !value
+        pairButton.setTitle(value ? "Pairing…" : "Pair iPhone", for: .normal)
+    }
+
+    func setEnrollmentRuntime(_ value: String) {
+        runtimeField.text = value
+    }
+
+    func clearPairingCode() {
+        pairingCodeField.text = ""
+    }
+
+    func setEnrollmentState(_ value: String) {
+        enrollmentState = value
         render()
     }
 
@@ -267,8 +513,15 @@ final class BodyStatusViewController: UIViewController {
 
     private func render() {
         guard isViewLoaded else { return }
-        stateLabel.text = callState == "idle" ? "Ready for Lola" : "Call: \(callState)"
+        if callState != "idle" {
+            stateLabel.text = "Call: \(callState)"
+        } else if enrollmentState.hasPrefix("paired") || enrollmentState.hasPrefix("reconnected") {
+            stateLabel.text = "Ready for Lola"
+        } else {
+            stateLabel.text = "Pair this iPhone"
+        }
         detailLabel.text = [
+            "Enrollment: \(enrollmentState)",
             "VoIP: \(voipState)",
             "Audio configured: \(audioConfigured ? "yes" : "no")",
             "Audio active: \(audioActive ? "yes" : "no")",
