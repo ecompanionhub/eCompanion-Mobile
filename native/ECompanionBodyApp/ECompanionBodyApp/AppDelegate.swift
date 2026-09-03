@@ -2,6 +2,7 @@ import UIKit
 import BodyAgentCore
 
 @main
+@MainActor
 final class AppDelegate: UIResponder, UIApplicationDelegate, IOSCallSystemBridgeDelegate {
     var window: UIWindow?
 
@@ -30,9 +31,9 @@ final class AppDelegate: UIResponder, UIApplicationDelegate, IOSCallSystemBridge
         Task { [weak self] in
             do {
                 try await self?.voiceAudioSession.configureForCallKit()
-                await MainActor.run { self?.statusViewController?.setAudioConfigured(true) }
+                self?.statusViewController?.setAudioConfigured(true)
             } catch {
-                await MainActor.run { self?.statusViewController?.setFailure("Audio configuration failed") }
+                self?.statusViewController?.setFailure("Audio configuration failed")
             }
         }
 
@@ -83,17 +84,15 @@ final class AppDelegate: UIResponder, UIApplicationDelegate, IOSCallSystemBridge
     func callSystemBridgeAudioDidActivate(_ bridge: IOSCallSystemBridge) {
         Task { [weak self] in
             await self?.voiceAudioSession.callKitDidActivate()
-            await MainActor.run {
-                self?.statusViewController?.setAudioActive(true)
-                self?.statusViewController?.setCallState("active")
-            }
+            self?.statusViewController?.setAudioActive(true)
+            self?.statusViewController?.setCallState("active")
         }
     }
 
     func callSystemBridgeAudioDidDeactivate(_ bridge: IOSCallSystemBridge) {
         Task { [weak self] in
             await self?.voiceAudioSession.callKitDidDeactivate()
-            await MainActor.run { self?.statusViewController?.setAudioActive(false) }
+            self?.statusViewController?.setAudioActive(false)
         }
     }
 
@@ -103,7 +102,7 @@ final class AppDelegate: UIResponder, UIApplicationDelegate, IOSCallSystemBridge
         statusViewController?.setCallState("idle")
         Task { [weak self] in
             await self?.voiceAudioSession.callKitDidDeactivate()
-            await MainActor.run { self?.statusViewController?.setAudioActive(false) }
+            self?.statusViewController?.setAudioActive(false)
         }
     }
 }
