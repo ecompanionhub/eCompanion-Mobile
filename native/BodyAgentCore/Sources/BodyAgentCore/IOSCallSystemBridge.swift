@@ -206,7 +206,7 @@ extension IOSCallSystemBridge: PKPushRegistryDelegate {
         _ registry: PKPushRegistry,
         didReceiveIncomingPushWith payload: PKPushPayload,
         for type: PKPushType,
-        completion: @escaping () -> Void
+        completion: @escaping @Sendable () -> Void
     ) {
         guard type == .voIP else {
             completion()
