@@ -130,5 +130,8 @@ jobs:
         run: swift --version
       - name: Build native body agent core
         run: swift build --package-path native/BodyAgentCore
+      - name: Build native body agent core for iOS Simulator
+        working-directory: native/BodyAgentCore
+        run: xcodebuild -scheme BodyAgentCore -destination 'generic/platform=iOS Simulator' -configuration Debug CODE_SIGNING_ALLOWED=NO build
       - name: Test native body agent core
         run: swift test --package-path native/BodyAgentCore
