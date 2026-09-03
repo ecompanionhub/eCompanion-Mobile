@@ -68,4 +68,59 @@ final class VoiceMediaTests: XCTestCase {
         XCTAssertEqual(first.payload, captured.payload)
         XCTAssertEqual(first.format, format)
     }
+
+    func testBoundedTransportDropsOldestFrameInsteadOfGrowingUnbounded() async throws {
+        let sink = try BufferedVoiceMediaTransportSink(capacity: 2)
+        let session = try VoiceCallSession(conversationID: "conversation-2", streamID: "stream-2")
+        _ = try await session.start()
+        _ = try await session.connected()
+        let sequencer = VoiceMediaSequencer(session: session)
+        let format = VoiceMediaFormat(sampleRate: 48_000, framesPerPacket: 2)
+
+        for timestamp in 1...3 {
+            let captured = VoiceCapturedAudioFrame(
+                format: format,
+                capturedAtMilliseconds: Int64(timestamp),
+                voiceActivity: true,
+                payload: VoicePCM16.encodeMono(samples: [0.1, 0.2])
+            )
+            try await sink.send(try await sequencer.transportFrame(from: captured))
+        }
+
+        let snapshot = await sink.snapshot()
+        XCTAssertEqual(snapshot.buffered, 2)
+        XCTAssertEqual(snapshot.dropped, 1)
+        let frames = await sink.drain()
+        XCTAssertEqual(frames.map(\.metadata.sequence), [1, 2])
+    }
+
+    func testCapturePipelineSequencesBeforeTransportSink() async throws {
+        let sink = try BufferedVoiceMediaTransportSink(capacity: 4)
+        let session = try VoiceCallSession(conversationID: "conversation-3", streamID: "stream-3")
+        _ = try await session.start()
+        _ = try await session.connected()
+        let pipeline = VoiceMediaCapturePipeline(session: session, sink: sink)
+        let format = VoiceMediaFormat(sampleRate: 48_000, framesPerPacket: 2)
+        let captured = VoiceCapturedAudioFrame(
+            format: format,
+            capturedAtMilliseconds: 9_999,
+            voiceActivity: false,
+            payload: VoicePCM16.encodeMono(samples: [0, 0])
+        )
+
+        try await pipeline.accept(captured)
+
+        let frames = await sink.drain()
+        XCTAssertEqual(frames.count, 1)
+        XCTAssertEqual(frames[0].metadata.sequence, 0)
+        XCTAssertEqual(frames[0].metadata.capturedAtMilliseconds, 9_999)
+        XCTAssertFalse(frames[0].metadata.voiceActivity)
+        XCTAssertEqual(frames[0].payload, captured.payload)
+    }
+
+    func testTransportBufferRejectsZeroCapacity() {
+        XCTAssertThrowsError(try BufferedVoiceMediaTransportSink(capacity: 0)) { error in
+            XCTAssertEqual(error as? VoiceMediaError, .invalidBufferCapacity)
+        }
+    }
 }
