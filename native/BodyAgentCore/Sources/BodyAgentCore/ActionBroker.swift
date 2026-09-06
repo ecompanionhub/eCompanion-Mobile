@@ -53,13 +53,18 @@ public actor BodyActionBroker {
         self.states = Dictionary(uniqueKeysWithValues: catalog.map { ($0.id, $0) })
 
         #if os(iOS)
-        let executor = StockBodyActionExecutor(driver: IOSStockDeviceActionDriver())
-        for capability in executor.capabilities {
-            guard var state = states[capability], state.tier == .stock else { continue }
-            executors[capability] = executor
-            state.availability = .available
-            state.reason = nil
-            states[capability] = state
+        let nativeExecutors: [any BodyActionExecutor] = [
+            StockBodyActionExecutor(driver: IOSStockDeviceActionDriver()),
+            DeviceLocationActionExecutor(driver: IOSDeviceLocationDriver())
+        ]
+        for executor in nativeExecutors {
+            for capability in executor.capabilities {
+                guard var state = states[capability], state.tier == .stock else { continue }
+                executors[capability] = executor
+                state.availability = .available
+                state.reason = nil
+                states[capability] = state
+            }
         }
         #endif
     }
