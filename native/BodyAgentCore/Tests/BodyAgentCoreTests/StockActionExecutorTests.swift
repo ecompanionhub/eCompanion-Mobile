@@ -52,7 +52,7 @@ final class StockActionExecutorTests: XCTestCase {
         return root
     }
 
-    func testOpenURLUsesStructuredActionAndRejectsLocalFileScheme() async throws {
+    func testOpenURLUsesStructuredActionAndRejectsPrivilegedSchemes() async throws {
         let root = try temporaryRoot()
         defer { try? FileManager.default.removeItem(at: root) }
         let driver = StubStockDeviceDriver(root: root)
@@ -66,18 +66,88 @@ final class StockActionExecutorTests: XCTestCase {
 
         XCTAssertEqual(result.output["opened"]?.boolValue, true)
         XCTAssertEqual(result.output["scheme"]?.stringValue, "https")
-        let opened = await driver.opened()
+        var opened = await driver.opened()
         XCTAssertEqual(opened.map(\.absoluteString), ["https://example.com/path"])
+
+        for rejectedURL in [
+            "file:///private/escape",
+            "shortcuts://run-shortcut?name=Bypass"
+        ] {
+            do {
+                _ = try await executor.execute(BodyActionRequest(
+                    capability: "device.open_url",
+                    operation: "open",
+                    arguments: ["url": .string(rejectedURL)]
+                ))
+                XCTFail("Privileged URL scheme must fail closed: \(rejectedURL)")
+            } catch let error as BodyActionError {
+                XCTAssertEqual(error, .invalidArguments("BODY_ACTION_URL_INVALID"))
+            }
+        }
+
+        opened = await driver.opened()
+        XCTAssertEqual(opened.count, 1)
+    }
+
+    func testShortcutInvokeUsesDedicatedCapabilityWithStructuredInput() async throws {
+        let root = try temporaryRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let driver = StubStockDeviceDriver(root: root)
+        let executor = StockBodyActionExecutor(driver: driver)
+
+        let result = try await executor.execute(BodyActionRequest(
+            capability: "device.shortcut.invoke",
+            operation: "run",
+            arguments: [
+                "name": .string("Studio Lights"),
+                "input": .string("text"),
+                "text": .string("ultraviolet 40%")
+            ]
+        ))
+
+        XCTAssertEqual(result.output["invoked"]?.boolValue, true)
+        XCTAssertEqual(result.output["input"]?.stringValue, "text")
+
+        let opened = await driver.opened()
+        XCTAssertEqual(opened.count, 1)
+        let components = opened.first.flatMap { URLComponents(url: $0, resolvingAgainstBaseURL: false) }
+        XCTAssertEqual(components?.scheme, "shortcuts")
+        XCTAssertEqual(components?.host, "run-shortcut")
+        let query = Dictionary(uniqueKeysWithValues: (components?.queryItems ?? []).map { ($0.name, $0.value ?? "") })
+        XCTAssertEqual(query["name"], "Studio Lights")
+        XCTAssertEqual(query["input"], "text")
+        XCTAssertEqual(query["text"], "ultraviolet 40%")
+    }
+
+    func testShortcutClipboardInputRejectsConflictingText() async throws {
+        let root = try temporaryRoot()
+        defer { try? FileManager.default.removeItem(at: root) }
+        let driver = StubStockDeviceDriver(root: root)
+        let executor = StockBodyActionExecutor(driver: driver)
+
+        let result = try await executor.execute(BodyActionRequest(
+            capability: "device.shortcut.invoke",
+            operation: "run",
+            arguments: [
+                "name": .string("Use Clipboard"),
+                "input": .string("clipboard")
+            ]
+        ))
+        XCTAssertEqual(result.output["input"]?.stringValue, "clipboard")
 
         do {
             _ = try await executor.execute(BodyActionRequest(
-                capability: "device.open_url",
-                operation: "open",
-                arguments: ["url": .string("file:///private/escape")]
+                capability: "device.shortcut.invoke",
+                operation: "run",
+                arguments: [
+                    "name": .string("Use Clipboard"),
+                    "input": .string("clipboard"),
+                    "text": .string("must not be ambiguous")
+                ]
             ))
-            XCTFail("Local file URLs must fail closed")
+            XCTFail("Conflicting Shortcut input must fail closed")
         } catch let error as BodyActionError {
-            XCTAssertEqual(error, .invalidArguments("BODY_ACTION_URL_INVALID"))
+            XCTAssertEqual(error, .invalidArguments("BODY_ACTION_SHORTCUT_INPUT_INVALID"))
         }
     }
 
