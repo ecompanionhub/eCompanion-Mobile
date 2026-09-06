@@ -17,14 +17,24 @@ enum StockActionLimits {
 }
 
 enum StockActionSupport {
+    static func rejectUnexpectedArguments(
+        _ arguments: [String: JSONValue],
+        allowed: Set<String>
+    ) throws {
+        guard arguments.keys.allSatisfy(allowed.contains) else {
+            throw BodyActionError.invalidArguments("BODY_ACTION_ARGUMENT_UNEXPECTED")
+        }
+    }
+
     static func requiredString(
         _ arguments: [String: JSONValue],
         key: String,
-        maxBytes: Int
+        maxBytes: Int,
+        allowEmpty: Bool = false
     ) throws -> String {
         guard let value = arguments[key]?.stringValue,
               !value.contains("\0"),
-              !value.isEmpty,
+              (allowEmpty || !value.isEmpty),
               value.utf8.count <= maxBytes else {
             throw BodyActionError.invalidArguments("BODY_ACTION_ARGUMENT_\(key.uppercased())_INVALID")
         }
@@ -103,11 +113,9 @@ struct StockBodyActionExecutor: BodyActionExecutor {
     ]
 
     private let driver: any StockDeviceActionDriver
-    private let fileManager: FileManager
 
-    init(driver: any StockDeviceActionDriver, fileManager: FileManager = .default) {
+    init(driver: any StockDeviceActionDriver) {
         self.driver = driver
-        self.fileManager = fileManager
     }
 
     func execute(_ request: BodyActionRequest) async throws -> BodyActionResult {
@@ -127,6 +135,7 @@ struct StockBodyActionExecutor: BodyActionExecutor {
         guard request.operation == "open" else {
             throw BodyActionError.operationDenied(request.operation)
         }
+        try StockActionSupport.rejectUnexpectedArguments(request.arguments, allowed: ["url"])
         let raw = try StockActionSupport.requiredString(
             request.arguments,
             key: "url",
@@ -136,6 +145,7 @@ struct StockBodyActionExecutor: BodyActionExecutor {
               let scheme = components.scheme?.lowercased(),
               !scheme.isEmpty,
               !["file", "data", "javascript"].contains(scheme),
+              !(["http", "https"].contains(scheme) && components.host?.isEmpty != false),
               let url = components.url else {
             throw BodyActionError.invalidArguments("BODY_ACTION_URL_INVALID")
         }
@@ -152,6 +162,7 @@ struct StockBodyActionExecutor: BodyActionExecutor {
     private func executeClipboard(_ request: BodyActionRequest) async throws -> BodyActionResult {
         switch request.operation {
         case "read_text":
+            try StockActionSupport.rejectUnexpectedArguments(request.arguments, allowed: [])
             let text = await driver.readClipboardText()
             if let text, text.utf8.count > StockActionLimits.clipboardTextBytes {
                 throw BodyActionError.executionFailed("BODY_ACTION_CLIPBOARD_TEXT_TOO_LARGE")
@@ -162,10 +173,12 @@ struct StockBodyActionExecutor: BodyActionExecutor {
                 output: ["text": text.map(JSONValue.string) ?? .null]
             )
         case "write_text":
+            try StockActionSupport.rejectUnexpectedArguments(request.arguments, allowed: ["text"])
             let text = try StockActionSupport.requiredString(
                 request.arguments,
                 key: "text",
-                maxBytes: StockActionLimits.clipboardTextBytes
+                maxBytes: StockActionLimits.clipboardTextBytes,
+                allowEmpty: true
             )
             await driver.writeClipboardText(text)
             return BodyActionResult(
@@ -174,6 +187,7 @@ struct StockBodyActionExecutor: BodyActionExecutor {
                 output: ["written": .bool(true), "bytes": .number(Double(text.utf8.count))]
             )
         case "clear":
+            try StockActionSupport.rejectUnexpectedArguments(request.arguments, allowed: [])
             await driver.clearClipboard()
             return BodyActionResult(
                 requestID: request.id,
@@ -195,6 +209,7 @@ struct StockBodyActionExecutor: BodyActionExecutor {
 
         switch request.operation {
         case "list":
+            try StockActionSupport.rejectUnexpectedArguments(request.arguments, allowed: ["path"])
             let relativePath = try StockActionSupport.optionalString(
                 request.arguments,
                 key: "path",
@@ -203,6 +218,7 @@ struct StockBodyActionExecutor: BodyActionExecutor {
             let directory = try StockActionSupport.confinedURL(root: root, relativePath: relativePath, allowRoot: true)
             return try listDirectory(request, directory: directory)
         case "read_text":
+            try StockActionSupport.rejectUnexpectedArguments(request.arguments, allowed: ["path"])
             let relativePath = try StockActionSupport.requiredString(
                 request.arguments,
                 key: "path",
@@ -211,6 +227,7 @@ struct StockBodyActionExecutor: BodyActionExecutor {
             let file = try StockActionSupport.confinedURL(root: root, relativePath: relativePath, allowRoot: false)
             return try readText(request, file: file)
         case "write_text":
+            try StockActionSupport.rejectUnexpectedArguments(request.arguments, allowed: ["path", "text", "overwrite"])
             let relativePath = try StockActionSupport.requiredString(
                 request.arguments,
                 key: "path",
@@ -219,12 +236,14 @@ struct StockBodyActionExecutor: BodyActionExecutor {
             let text = try StockActionSupport.requiredString(
                 request.arguments,
                 key: "text",
-                maxBytes: StockActionLimits.fileTextBytes
+                maxBytes: StockActionLimits.fileTextBytes,
+                allowEmpty: true
             )
             let overwrite = try StockActionSupport.optionalBool(request.arguments, key: "overwrite")
             let file = try StockActionSupport.confinedURL(root: root, relativePath: relativePath, allowRoot: false)
             return try writeText(request, file: file, text: text, overwrite: overwrite)
         case "create_directory":
+            try StockActionSupport.rejectUnexpectedArguments(request.arguments, allowed: ["path", "with_intermediates"])
             let relativePath = try StockActionSupport.requiredString(
                 request.arguments,
                 key: "path",
@@ -233,7 +252,7 @@ struct StockBodyActionExecutor: BodyActionExecutor {
             let intermediates = try StockActionSupport.optionalBool(request.arguments, key: "with_intermediates")
             let directory = try StockActionSupport.confinedURL(root: root, relativePath: relativePath, allowRoot: false)
             do {
-                try fileManager.createDirectory(at: directory, withIntermediateDirectories: intermediates)
+                try FileManager.default.createDirectory(at: directory, withIntermediateDirectories: intermediates)
             } catch {
                 throw BodyActionError.executionFailed("BODY_ACTION_DIRECTORY_CREATE_FAILED")
             }
@@ -243,6 +262,7 @@ struct StockBodyActionExecutor: BodyActionExecutor {
                 output: ["created": .bool(true), "path": .string(relativePath)]
             )
         case "delete_file":
+            try StockActionSupport.rejectUnexpectedArguments(request.arguments, allowed: ["path"])
             let relativePath = try StockActionSupport.requiredString(
                 request.arguments,
                 key: "path",
@@ -259,7 +279,7 @@ struct StockBodyActionExecutor: BodyActionExecutor {
         let keys: Set<URLResourceKey> = [.isDirectoryKey, .isRegularFileKey, .fileSizeKey]
         let values: [URL]
         do {
-            values = try fileManager.contentsOfDirectory(
+            values = try FileManager.default.contentsOfDirectory(
                 at: directory,
                 includingPropertiesForKeys: Array(keys),
                 options: []
@@ -271,10 +291,11 @@ struct StockBodyActionExecutor: BodyActionExecutor {
         let entries: [JSONValue] = limited.map { url in
             let resource = try? url.resourceValues(forKeys: keys)
             let kind = resource?.isDirectory == true ? "directory" : (resource?.isRegularFile == true ? "file" : "other")
+            let bytes: JSONValue = resource?.fileSize.map { .number(Double($0)) } ?? .null
             return .object([
                 "name": .string(url.lastPathComponent),
                 "kind": .string(kind),
-                "bytes": resource?.fileSize.map { .number(Double($0)) } ?? .null
+                "bytes": bytes
             ])
         }
         return BodyActionResult(
@@ -325,7 +346,7 @@ struct StockBodyActionExecutor: BodyActionExecutor {
         text: String,
         overwrite: Bool
     ) throws -> BodyActionResult {
-        if fileManager.fileExists(atPath: file.path), !overwrite {
+        if FileManager.default.fileExists(atPath: file.path), !overwrite {
             throw BodyActionError.executionFailed("BODY_ACTION_FILE_EXISTS")
         }
         guard let data = text.data(using: .utf8), data.count <= StockActionLimits.fileTextBytes else {
@@ -353,7 +374,7 @@ struct StockBodyActionExecutor: BodyActionExecutor {
             guard resource.isRegularFile == true else {
                 throw BodyActionError.executionFailed("BODY_ACTION_FILE_NOT_REGULAR")
             }
-            try fileManager.removeItem(at: file)
+            try FileManager.default.removeItem(at: file)
         } catch let error as BodyActionError {
             throw error
         } catch {
