@@ -3,28 +3,32 @@ import Foundation
 import UIKit
 
 struct IOSStockDeviceActionDriver: StockDeviceActionDriver {
-    @MainActor
     func openURL(_ url: URL) async -> Bool {
         await withCheckedContinuation { continuation in
-            UIApplication.shared.open(url, options: [:]) { success in
-                continuation.resume(returning: success)
+            Task { @MainActor in
+                UIApplication.shared.open(url, options: [:]) { success in
+                    continuation.resume(returning: success)
+                }
             }
         }
     }
 
-    @MainActor
     func readClipboardText() async -> String? {
-        UIPasteboard.general.string
+        await MainActor.run {
+            UIPasteboard.general.string
+        }
     }
 
-    @MainActor
     func writeClipboardText(_ text: String) async {
-        UIPasteboard.general.string = text
+        await MainActor.run {
+            UIPasteboard.general.string = text
+        }
     }
 
-    @MainActor
     func clearClipboard() async {
-        UIPasteboard.general.items = []
+        await MainActor.run {
+            UIPasteboard.general.items = []
+        }
     }
 
     func appDocumentsDirectory() async throws -> URL {
