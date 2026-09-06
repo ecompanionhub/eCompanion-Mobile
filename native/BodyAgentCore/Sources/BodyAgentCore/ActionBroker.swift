@@ -36,6 +36,8 @@ public enum BodyActionError: Error, Sendable, Equatable {
     case capabilityUnavailable(String)
     case executorMissing(String)
     case operationDenied(String)
+    case invalidArguments(String)
+    case executionFailed(String)
 }
 
 public protocol BodyActionExecutor: Sendable {
@@ -49,6 +51,17 @@ public actor BodyActionBroker {
 
     public init(catalog: [CapabilityState] = BodyCapabilities.catalog) {
         self.states = Dictionary(uniqueKeysWithValues: catalog.map { ($0.id, $0) })
+
+        #if os(iOS)
+        let executor = StockBodyActionExecutor(driver: IOSStockDeviceActionDriver())
+        for capability in executor.capabilities {
+            guard var state = states[capability], state.tier == .stock else { continue }
+            executors[capability] = executor
+            state.availability = .available
+            state.reason = nil
+            states[capability] = state
+        }
+        #endif
     }
 
     public func snapshot() -> [CapabilityState] {
