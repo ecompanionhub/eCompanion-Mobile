@@ -10,6 +10,8 @@ protocol StockDeviceActionDriver: Sendable {
 
 enum StockActionLimits {
     static let openURLBytes = 4_096
+    static let shortcutNameBytes = 1_024
+    static let shortcutInputModeBytes = 32
     static let clipboardTextBytes = 256_000
     static let fileTextBytes = 2_000_000
     static let relativePathBytes = 1_024
@@ -108,6 +110,7 @@ enum StockActionSupport {
 struct StockBodyActionExecutor: BodyActionExecutor {
     let capabilities: Set<String> = [
         "device.open_url",
+        "device.shortcut.invoke",
         "device.clipboard",
         "device.files.app_owned"
     ]
@@ -122,6 +125,8 @@ struct StockBodyActionExecutor: BodyActionExecutor {
         switch request.capability {
         case "device.open_url":
             return try await executeOpenURL(request)
+        case "device.shortcut.invoke":
+            return try await executeShortcut(request)
         case "device.clipboard":
             return try await executeClipboard(request)
         case "device.files.app_owned":
@@ -144,7 +149,7 @@ struct StockBodyActionExecutor: BodyActionExecutor {
         guard let components = URLComponents(string: raw),
               let scheme = components.scheme?.lowercased(),
               !scheme.isEmpty,
-              !["file", "data", "javascript"].contains(scheme),
+              !["file", "data", "javascript", "shortcuts", "shortcuts-events"].contains(scheme),
               !(["http", "https"].contains(scheme) && components.host?.isEmpty != false),
               let url = components.url else {
             throw BodyActionError.invalidArguments("BODY_ACTION_URL_INVALID")
@@ -156,6 +161,67 @@ struct StockBodyActionExecutor: BodyActionExecutor {
             requestID: request.id,
             capability: request.capability,
             output: ["opened": .bool(true), "scheme": .string(scheme)]
+        )
+    }
+
+    private func executeShortcut(_ request: BodyActionRequest) async throws -> BodyActionResult {
+        guard request.operation == "run" else {
+            throw BodyActionError.operationDenied(request.operation)
+        }
+        try StockActionSupport.rejectUnexpectedArguments(request.arguments, allowed: ["name", "input", "text"])
+        let name = try StockActionSupport.requiredString(
+            request.arguments,
+            key: "name",
+            maxBytes: StockActionLimits.shortcutNameBytes
+        )
+        let input = try StockActionSupport.optionalString(
+            request.arguments,
+            key: "input",
+            maxBytes: StockActionLimits.shortcutInputModeBytes
+        )
+
+        var queryItems = [URLQueryItem(name: "name", value: name)]
+        let inputMode: String
+        switch input {
+        case "":
+            guard request.arguments["text"] == nil else {
+                throw BodyActionError.invalidArguments("BODY_ACTION_SHORTCUT_INPUT_INVALID")
+            }
+            inputMode = "none"
+        case "text":
+            let text = try StockActionSupport.requiredString(
+                request.arguments,
+                key: "text",
+                maxBytes: StockActionLimits.clipboardTextBytes,
+                allowEmpty: true
+            )
+            queryItems.append(URLQueryItem(name: "input", value: "text"))
+            queryItems.append(URLQueryItem(name: "text", value: text))
+            inputMode = "text"
+        case "clipboard":
+            guard request.arguments["text"] == nil else {
+                throw BodyActionError.invalidArguments("BODY_ACTION_SHORTCUT_INPUT_INVALID")
+            }
+            queryItems.append(URLQueryItem(name: "input", value: "clipboard"))
+            inputMode = "clipboard"
+        default:
+            throw BodyActionError.invalidArguments("BODY_ACTION_SHORTCUT_INPUT_INVALID")
+        }
+
+        var components = URLComponents()
+        components.scheme = "shortcuts"
+        components.host = "run-shortcut"
+        components.queryItems = queryItems
+        guard let url = components.url else {
+            throw BodyActionError.invalidArguments("BODY_ACTION_SHORTCUT_URL_INVALID")
+        }
+        guard await driver.openURL(url) else {
+            throw BodyActionError.executionFailed("BODY_ACTION_SHORTCUT_REJECTED")
+        }
+        return BodyActionResult(
+            requestID: request.id,
+            capability: request.capability,
+            output: ["invoked": .bool(true), "input": .string(inputMode)]
         )
     }
 
