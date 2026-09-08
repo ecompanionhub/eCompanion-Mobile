@@ -68,7 +68,7 @@ jobs:
           assert 'id="syncDeviceBtn" class="secondary" type="button">Save changes</button>' in html
           assert 'body:has(#setupSection:not([hidden])) .advanced{display:none}' in html
           assert 'Forget on this phone' in html
-          assert 'server-side revocation remains owner-controlled' in html
+          assert 'Server-side revocation remains owner-controlled' in html
           owner_visible_forbidden = [
               '>Runtime connection<',
               '>Refresh capabilities<',
