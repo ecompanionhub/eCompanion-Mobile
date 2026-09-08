@@ -1,7 +1,7 @@
 {
-  "name": "eCompanion Body",
-  "short_name": "eBody",
-  "description": "Platform-independent body surface for eCompanion.",
+  "name": "eCompanion",
+  "short_name": "Lola",
+  "description": "Your private eCompanion on this phone.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
