@@ -1,11 +1,6 @@
 export const MAX_ATTACHMENT_COUNT = 8;
-// Runtime's multimodal content validator accepts these semantic limits.
 export const MAX_ATTACHMENT_BYTES = 20 * 1024 * 1024;
 export const MAX_TURN_ATTACHMENT_BYTES = 25 * 1024 * 1024;
-// Runtime's current Body HTTP route reads JSON with a 1,000,000-byte ceiling.
-// Base64 expands binary data by ~4/3, so the client must stay well below that
-// transport boundary until Runtime exposes a coherent larger Body turn limit.
-export const MAX_WIRE_ATTACHMENT_BYTES = 650_000;
 
 export function attachmentKind(mimeType) {
   const mime = String(mimeType || '').trim().toLowerCase();
@@ -36,9 +31,6 @@ export function validateAttachmentFiles(files) {
     total += size;
   }
   if (total > MAX_TURN_ATTACHMENT_BYTES) throw new Error('The selected files exceed the Runtime turn attachment limit.');
-  if (total > MAX_WIRE_ATTACHMENT_BYTES) {
-    throw new Error('These files are too large to send through the current eCompanion connection. Choose files under 650 KB together.');
-  }
   return list;
 }
 
