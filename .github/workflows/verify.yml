@@ -65,6 +65,8 @@ jobs:
 
           assert '<summary>This phone</summary>' in html
           assert 'id="runtimeBase" type="hidden"' in html
+          assert 'id="syncDeviceBtn" class="secondary" type="button">Save changes</button>' in html
+          assert 'body:has(#setupSection:not([hidden])) .advanced{display:none}' in html
           assert 'Forget on this phone' in html
           assert 'server-side revocation remains owner-controlled' in html
           owner_visible_forbidden = [
@@ -102,6 +104,8 @@ jobs:
           assert 'preserveMessages' in js
           assert 'Your saved messages are still here' in js
           assert 'Refresh the conversation before sending again to avoid a duplicate message' in js
+          assert "$('syncDeviceBtn').addEventListener('click'" in js
+          assert "'/api/v1/body/device'" in js
 
           assert "import { createVoiceAdapter } from './voice.js'" in js
           assert 'speech_recognition' in js
