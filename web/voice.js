@@ -5,10 +5,11 @@ export function createVoiceAdapter({ language, onTranscript, onState } = {}) {
 
   let recognition = null;
   let listening = false;
+  let speaking = false;
   let speakReplies = true;
 
   function emit(text) {
-    onState?.({ listening, speakReplies, text });
+    onState?.({ listening, speaking, speakReplies, text });
   }
 
   function capabilities() {
@@ -16,6 +17,15 @@ export function createVoiceAdapter({ language, onTranscript, onState } = {}) {
       speech_recognition: Boolean(Recognition),
       speech_synthesis: canSpeak
     });
+  }
+
+  function stopSpeaking({ emitState = true } = {}) {
+    if (!canSpeak) return false;
+    const wasSpeaking = speaking;
+    globalThis.speechSynthesis.cancel();
+    speaking = false;
+    if (emitState) emit('Voice ready');
+    return wasSpeaking;
   }
 
   function stopListening() {
@@ -27,6 +37,8 @@ export function createVoiceAdapter({ language, onTranscript, onState } = {}) {
   function startListening() {
     if (!Recognition) throw new Error('Speech recognition is unavailable on this browser');
     if (listening) return false;
+
+    if (speaking) stopSpeaking({ emitState: false });
 
     let finalTranscript = '';
     recognition = new Recognition();
@@ -81,7 +93,7 @@ export function createVoiceAdapter({ language, onTranscript, onState } = {}) {
 
   function setSpeakReplies(value) {
     speakReplies = Boolean(value);
-    if (!speakReplies && canSpeak) globalThis.speechSynthesis.cancel();
+    if (!speakReplies && canSpeak) stopSpeaking({ emitState: false });
     emit(speakReplies ? 'Voice replies on' : 'Voice replies off');
     return speakReplies;
   }
@@ -91,21 +103,24 @@ export function createVoiceAdapter({ language, onTranscript, onState } = {}) {
     if (!canSpeak || !speakReplies || !content) return false;
 
     globalThis.speechSynthesis.cancel();
+    speaking = false;
     const utterance = new globalThis.SpeechSynthesisUtterance(content);
     utterance.lang = lang;
     utterance.rate = 1;
     utterance.pitch = 1;
-    utterance.onstart = () => emit('Speaking…');
-    utterance.onend = () => emit('Voice ready');
-    utterance.onerror = () => emit('Voice playback failed');
+    utterance.onstart = () => {
+      speaking = true;
+      emit('Speaking…');
+    };
+    utterance.onend = () => {
+      speaking = false;
+      emit('Voice ready');
+    };
+    utterance.onerror = () => {
+      speaking = false;
+      emit('Voice playback failed');
+    };
     globalThis.speechSynthesis.speak(utterance);
-    return true;
-  }
-
-  function stopSpeaking() {
-    if (!canSpeak) return false;
-    globalThis.speechSynthesis.cancel();
-    emit('Voice ready');
     return true;
   }
 
@@ -117,6 +132,7 @@ export function createVoiceAdapter({ language, onTranscript, onState } = {}) {
     speak,
     stopSpeaking,
     isListening: () => listening,
+    isSpeaking: () => speaking,
     speakRepliesEnabled: () => speakReplies
   });
 }
