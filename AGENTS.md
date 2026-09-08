@@ -7,6 +7,8 @@ Permanent standing rules for this repository. Current status, evidence and cross
 - Owner explicit intent is the highest product authority.
 - ⌘ Quinn 🧭 — eCompanion Headquarters / Management — owns routing, cross-project priority, scope coordination, sequencing, acceptance criteria and material product/economic trade-offs.
 - ◐ Iris 👩🏽‍🎨 — Interfaces — owns the user-facing product experience in this real owning surface.
+- ✦ Lola 🙋🏼‍♀️ — Lola product/intelligence authority — remains the overarching Lola authority across Private/Social product behavior and shared Lola contracts.
+- ✧ Yara 🙋🏽‍♀️ — eCompanion Lola Social — owns Social Lola implementation in `ecompanionhub/eCompanion-Lola-Social` → `main`. Yara is an implementation worker, not a second Lola identity or provider-transport authority.
 - ≡ Nora 👩🏻‍💼 — eCompanion Report Centre — reads `HEADQUARTERS_REPORT.md` and reports evidence; Nora does not design Mobile/Interfaces.
 - ⌖ Vera 👩🏾‍🔧 — eCompanion Production — may reproduce/fix production defects in the correct owning source while respecting existing product authorities.
 
@@ -36,18 +38,28 @@ Mobile is a client and device-facing product surface. It does not own neutral ba
 Canonical external authorities include:
 - Runtime / Maeve: conversations, neutral action lifecycle, auth/policy, shared state, pairing authority;
 - Devices / Sanne: physical/local device execution and NODE truth;
-- Integrations / Cleo: Discord, Telegram, providers, external delivery;
+- Integrations / Cleo: Discord, Telegram, provider transport, external delivery and provider lifecycle;
 - Personas / Elin: canonical persona/profile semantics;
-- Lola: Lola-specific companion behavior and product logic.
+- Lola / ✦ Lola: Lola-specific product/intelligence authority and shared Lola behavior/contracts;
+- Social Lola / ✧ Yara: Social Lola implementation in `eCompanion-Lola-Social`, including Social-side behavior/participation/continuity/provider-event consumption/readiness/reconciliation where applicable. Yara does not own Discord/Telegram/provider transport.
+
+When Mobile exposes Social Lola state or behavior:
+- consume canonical Lola/Runtime/Integrations contracts;
+- do not duplicate Social state or create browser-owned truth;
+- route Social-Lola implementation dependencies to ✧ Yara / `eCompanion-Lola-Social`;
+- route provider transport/account/gateway/delivery lifecycle dependencies to ↔ Cleo / Integrations;
+- never use the owner to coordinate Iris/Yara/Cleo handoffs.
 
 Mobile MUST NOT:
 - create local companion identity authority;
 - mint authorization or pairing grants;
 - embed Runtime/service root credentials;
 - create a second action lifecycle;
-- fake delivery/device/action success;
+- fake delivery/device/action/Social success;
 - move provider or NODE execution into the client;
-- persist browser-only canonical persona/memory/policy truth.
+- persist browser-only canonical persona/memory/policy/Social truth;
+- absorb Social Lola implementation into Interfaces;
+- route Discord/Telegram/provider transport implementation to Yara.
 
 ## eCompanion operating doctrine
 Owner explicit intent is highest authority. Quinn/Headquarters directives are next. Canonical source and real production/physical truth outrank local assumptions.
@@ -112,9 +124,10 @@ Never show a success state before canonical backend truth supports it.
 At the start of relevant work, read this repo's `HEADQUARTERS_REPORT.md` and only materially relevant peer reports:
 - `eCompanion-Runtime` for Body/chat/pairing/action/auth contracts;
 - `eCompanion-Devices` for NODE/device state/actions;
-- `eCompanion-Integrations` for external destinations/delivery;
+- `eCompanion-Integrations` for external destinations/provider transport/delivery;
 - `eCompanion-Personas` for persona/profile state;
-- `eCompanion-Lola` only when companion behavior/contracts materially affect the Mobile surface. Do not write Lola product authority from this work lane.
+- `eCompanion-Lola` when Private Lola or shared Lola product/intelligence contracts materially affect the Mobile surface;
+- `eCompanion-Lola-Social` when Social Lola implementation/state/behavior materially affects an exposed Social surface. Treat ✧ Yara as the Social Lola implementation worker and do not write Social Lola source from this work lane.
 
 Do not audit all repos by default.
 
@@ -123,8 +136,10 @@ Current repository verification is defined by `.github/workflows/verify.yml`.
 
 Relevant checks include:
 - `node --check web/app.js`
+- `node --check web/attachments.js`
 - `node --check web/voice.js`
 - `node --check web/sw.js`
+- Mobile multimodal/voice behavior tests
 - Mobile boundary/static product gate
 - Swift `BodyAgentCore` build
 - iOS Simulator `BodyAgentCore` build
@@ -153,6 +168,7 @@ A screen existing or a request returning 200 is not automatically product proof.
 - Device credentials remain scoped and revocable by the owning authority.
 - Owner authorization is backend-enforced, never UI-only.
 - Private context must not leak to Social/external surfaces merely because the client can display it.
+- Private NODE/files/credentials/conversation authority must never be inferred into Social Lola merely because both domains belong to Lola.
 - Use least privilege, explicit validation, secure defaults, and fail closed.
 
 Emergency mitigation is allowed to protect a harmful rollout: stop damage, restore safe state, then fix root cause and restore the intended product. Temporary rollback is not automatically the final requested state.
@@ -176,6 +192,11 @@ Any change that affects another service/consumer/contract/interface/deployment/c
 - rollout dependency;
 - `Do not` non-regression rule;
 - evidence.
+
+For Social-related interface work, cross-project reporting must distinguish explicitly:
+- ✧ Yara / `eCompanion-Lola-Social` for Social Lola implementation;
+- ↔ Cleo / `eCompanion-Integrations` for Discord/Telegram/provider transport;
+- ✦ Lola / `eCompanion-Lola` for Private/shared Lola product/intelligence authority.
 
 If another project is genuinely required, record `## CROSS-PROJECT BLOCKER`, then continue all remaining executable Interface work.
 Do not use the owner as a message bus.
