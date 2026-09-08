@@ -7,6 +7,7 @@ const statusDot = $('statusDot');
 const statusText = $('statusText');
 const capabilitiesEl = $('capabilities');
 const messagesEl = $('messages');
+const chatNotice = $('chatNotice');
 const chatTitle = $('chatTitle');
 const chatMeta = $('chatMeta');
 const chatInput = $('chatInput');
@@ -49,14 +50,12 @@ function normalizedHttpUrl(value) {
 }
 
 const runtimeFromQuery = new URLSearchParams(location.search).get('runtime');
-const savedRuntime = localStorage.getItem(STORAGE.runtimeBase) || '';
+localStorage.removeItem(STORAGE.runtimeBase);
 let initialRuntime = DEFAULT_RUNTIME;
 try {
-  initialRuntime = normalizedHttpUrl(runtimeFromQuery || savedRuntime || DEFAULT_RUNTIME);
-  if (initialRuntime) localStorage.setItem(STORAGE.runtimeBase, initialRuntime);
+  initialRuntime = normalizedHttpUrl(runtimeFromQuery || DEFAULT_RUNTIME);
 } catch {
   initialRuntime = DEFAULT_RUNTIME;
-  localStorage.setItem(STORAGE.runtimeBase, initialRuntime);
 }
 
 const hashParams = new URLSearchParams(location.hash.replace(/^#/, ''));
@@ -77,7 +76,7 @@ const voiceAdapter = createVoiceAdapter({
   onTranscript: async (transcript) => {
     chatInput.value = transcript;
     await run(() => sendChatContent(transcript, { clearInput: true }))
-      .catch((error) => renderChatError(error));
+      .catch((error) => renderChatError(error, { preserveMessages: true }));
   },
   onState: ({ listening, speakReplies, text }) => {
     voiceBtn.textContent = listening ? '■' : '◉';
@@ -155,6 +154,17 @@ function currentCredentialId() {
   return localStorage.getItem(STORAGE.credentialId) || '';
 }
 
+function clearLocalCredential() {
+  localStorage.removeItem(STORAGE.deviceToken);
+  localStorage.removeItem(STORAGE.credentialId);
+}
+
+function showChatNotice(text = '') {
+  const value = String(text || '').trim();
+  chatNotice.textContent = value;
+  chatNotice.hidden = !value;
+}
+
 function renderPairingSurface() {
   const paired = Boolean(currentToken());
   setupSection.hidden = paired && !pendingRelinkCode;
@@ -198,7 +208,6 @@ function setStatus(ok, text) {
 function runtimeBase() {
   const value = normalizedHttpUrl($('runtimeBase').value || DEFAULT_RUNTIME);
   if (!value) throw new Error('eCompanion is not connected to Runtime');
-  localStorage.setItem(STORAGE.runtimeBase, value);
   return value;
 }
 
@@ -233,6 +242,7 @@ async function parseResponse(response) {
   const contentType = String(response.headers.get('content-type') || '').toLowerCase();
   if (!contentType.includes('application/json')) {
     const error = new Error('eCompanion returned an unexpected response.');
+    error.status = response.status;
     error.payload = {
       status: response.status,
       content_type: contentType || null,
@@ -244,6 +254,7 @@ async function parseResponse(response) {
   const payload = await response.json().catch(() => ({ ok: false, error: 'invalid_json_response' }));
   if (!response.ok) {
     const error = new Error(runtimeErrorMessage(payload, response.status));
+    error.status = response.status;
     error.payload = payload;
     throw error;
   }
@@ -307,6 +318,7 @@ function renderMessages(items) {
 }
 
 function renderPendingTurn(content) {
+  showChatNotice('');
   const empty = messagesEl.querySelector('.empty-chat');
   if (empty) empty.remove();
   const user = document.createElement('div');
@@ -321,17 +333,36 @@ function renderPendingTurn(content) {
 }
 
 function renderChat(chat) {
+  showChatNotice('');
   chatTitle.textContent = String(chat?.companion?.name || 'Lola');
   chatMeta.textContent = chat?.conversation ? 'Conversation connected' : 'Ready when you are';
   renderMessages(Array.isArray(chat?.messages) ? chat.messages : []);
   renderPairingSurface();
 }
 
-function renderChatError(error) {
+function renderChatError(error, { preserveMessages = false } = {}) {
+  const unauthorized = error?.status === 401 || error?.status === 403;
+  if (unauthorized) {
+    clearLocalCredential();
+    setStatus(false, 'Reconnect needed');
+  }
+
+  const hasConversation = preserveMessages && messagesEl.children.length > 0 && !messagesEl.querySelector('.empty-chat');
+  if (hasConversation && currentToken()) {
+    messagesEl.querySelector('[data-pending="true"]')?.remove();
+    showChatNotice(error?.message || 'The conversation could not refresh. Your saved messages are still here.');
+    chatMeta.textContent = 'Needs attention';
+    renderPairingSurface();
+    return;
+  }
+
   messagesEl.replaceChildren();
   const empty = document.createElement('div');
   empty.className = 'empty-chat';
-  if (error?.payload?.error === 'BODY_COMPANION_NOT_CONFIGURED') {
+  if (unauthorized) {
+    empty.textContent = 'This device connection expired or was revoked. Reconnect this phone to continue.';
+    chatMeta.textContent = 'Reconnect needed';
+  } else if (error?.payload?.error === 'BODY_COMPANION_NOT_CONFIGURED') {
     empty.textContent = 'This phone is connected, but a companion still needs to be assigned in eCompanion.';
     chatMeta.textContent = 'Companion assignment needed';
   } else if (!currentToken() && pendingRelinkCode) {
@@ -344,17 +375,18 @@ function renderChatError(error) {
     empty.textContent = error?.message || 'Conversation unavailable.';
     chatMeta.textContent = 'Conversation unavailable';
   }
+  showChatNotice('');
   messagesEl.append(empty);
   renderPairingSurface();
 }
 
-async function loadChat() {
+async function loadChat({ preserveOnError = true } = {}) {
   try {
     const result = await bodyRequest('/api/v1/body/chat?limit=100');
     renderChat(result.chat);
     return result;
   } catch (error) {
-    renderChatError(error);
+    renderChatError(error, { preserveMessages: preserveOnError });
     throw error;
   }
 }
@@ -390,13 +422,18 @@ async function sendChatContent(value, { clearInput = false } = {}) {
     });
     if (clearInput || chatInput.value.trim() === content) chatInput.value = '';
     setStatus(true, 'Connected');
-    await loadChat();
+    await loadChat({ preserveOnError: true });
     setPresence('available').catch(() => null);
     const assistantText = result.chat?.turn?.assistantMessage?.content;
     if (assistantText) voiceAdapter.speak(assistantText);
     return result;
   } catch (error) {
-    await loadChat().catch(() => renderChatError(error));
+    await loadChat({ preserveOnError: true }).catch(() => {
+      renderChatError(error, { preserveMessages: true });
+      if (currentToken()) {
+        showChatNotice('Connection interrupted while sending. Refresh the conversation before sending again to avoid a duplicate message.');
+      }
+    });
     throw error;
   } finally {
     sendBtn.disabled = false;
@@ -436,7 +473,7 @@ $('pairBtn').addEventListener('click', () => run(async () => {
     setStatus(true, result.relinked ? 'Reconnected' : 'Connected');
     renderBodyIdentity({ assigned_actor_id: result.device?.assigned_actor_id ?? null });
     renderPairingSurface();
-    await loadChat().catch(() => null);
+    await loadChat({ preserveOnError: false }).catch(() => null);
     setPresence('available').catch(() => null);
     return result;
   } finally {
@@ -447,7 +484,7 @@ $('pairBtn').addEventListener('click', () => run(async () => {
 
 $('connectBtn').addEventListener('click', () => run(async () => {
   const result = await refreshSelf();
-  await loadChat().catch(() => null);
+  await loadChat({ preserveOnError: true }).catch(() => null);
   return result;
 }).catch(() => {}));
 
@@ -484,12 +521,12 @@ async function setPresence(state) {
 
 $('availableBtn').addEventListener('click', () => run(() => setPresence('available')).catch(() => {}));
 $('offlineBtn').addEventListener('click', () => run(() => setPresence('offline')).catch(() => {}));
-$('refreshChatBtn').addEventListener('click', () => run(() => loadChat()).catch(() => {}));
+$('refreshChatBtn').addEventListener('click', () => run(() => loadChat({ preserveOnError: true })).catch(() => {}));
 
 $('chatForm').addEventListener('submit', (event) => {
   event.preventDefault();
   run(() => sendChatContent(chatInput.value, { clearInput: true }))
-    .catch((error) => renderChatError(error));
+    .catch((error) => renderChatError(error, { preserveMessages: true }));
 });
 
 chatInput.addEventListener('input', () => {
@@ -528,9 +565,8 @@ speakToggle.addEventListener('click', () => {
 $('forgetBtn').addEventListener('click', () => {
   voiceAdapter.stopListening();
   voiceAdapter.stopSpeaking();
-  localStorage.removeItem(STORAGE.deviceToken);
-  localStorage.removeItem(STORAGE.credentialId);
-  setStatus(false, 'Device disconnected');
+  clearLocalCredential();
+  setStatus(false, 'Forgotten on this phone');
   renderBodyIdentity();
   renderPairingSurface();
   renderChatError(new Error('Connect this phone to eCompanion.'));
@@ -549,10 +585,10 @@ renderBodyIdentity();
 renderPairingSurface();
 if (currentToken()) {
   refreshSelf()
-    .then(() => Promise.allSettled([loadChat(), setPresence(document.visibilityState === 'visible' ? 'available' : 'away')]))
-    .catch(() => {
-      setStatus(false, 'Reconnect needed');
-      renderPairingSurface();
+    .then(() => Promise.allSettled([loadChat({ preserveOnError: false }), setPresence(document.visibilityState === 'visible' ? 'available' : 'away')]))
+    .catch((error) => {
+      renderChatError(error, { preserveMessages: false });
+      if (currentToken()) setStatus(false, 'Connection unavailable');
     });
 } else if (pendingRelinkCode) {
   setStatus(false, 'Reconnect ready');
