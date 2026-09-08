@@ -3,9 +3,8 @@ import { webcrypto } from 'node:crypto';
 import test from 'node:test';
 
 import {
-  MAX_ATTACHMENT_BYTES,
   MAX_ATTACHMENT_COUNT,
-  MAX_TURN_ATTACHMENT_BYTES,
+  MAX_WIRE_ATTACHMENT_BYTES,
   attachmentKind,
   prepareAttachment,
   validateAttachmentFiles
@@ -54,18 +53,24 @@ test('attachment preparation produces canonical bytes, digest and metadata', asy
   });
 });
 
-test('attachment selection fails closed at Runtime-compatible limits', () => {
+test('attachment selection fails closed on the real current Body HTTP transport limit', () => {
   const tiny = fakeFile({ bytes: new Uint8Array([1]) });
   assert.throws(
     () => validateAttachmentFiles(Array.from({ length: MAX_ATTACHMENT_COUNT + 1 }, () => tiny)),
     /up to 8 files/i
   );
 
-  const oversized = Object.freeze({ name: 'huge.bin', type: 'application/octet-stream', size: MAX_ATTACHMENT_BYTES + 1 });
-  assert.throws(() => validateAttachmentFiles([oversized]), /larger than 20 MB/i);
+  const oversized = Object.freeze({
+    name: 'too-large.bin',
+    type: 'application/octet-stream',
+    size: MAX_WIRE_ATTACHMENT_BYTES + 1
+  });
+  assert.throws(() => validateAttachmentFiles([oversized]), /under 650 KB together/i);
 
-  const half = Math.floor(MAX_TURN_ATTACHMENT_BYTES / 2) + 1;
-  const a = Object.freeze({ name: 'a.bin', type: 'application/octet-stream', size: half });
-  const b = Object.freeze({ name: 'b.bin', type: 'application/octet-stream', size: half });
-  assert.throws(() => validateAttachmentFiles([a, b]), /larger than 25 MB together/i);
+  const first = Object.freeze({ name: 'a.bin', type: 'application/octet-stream', size: 400_000 });
+  const second = Object.freeze({ name: 'b.bin', type: 'application/octet-stream', size: 300_001 });
+  assert.throws(() => validateAttachmentFiles([first, second]), /under 650 KB together/i);
+
+  const safe = Object.freeze({ name: 'safe.bin', type: 'application/octet-stream', size: MAX_WIRE_ATTACHMENT_BYTES });
+  assert.deepEqual(validateAttachmentFiles([safe]), [safe]);
 });
