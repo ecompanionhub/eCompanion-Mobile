@@ -3,78 +3,70 @@
 <head>
   <meta charset="utf-8" />
   <meta name="viewport" content="width=device-width,initial-scale=1,viewport-fit=cover" />
-  <meta name="theme-color" content="#0b0b0f" />
+  <meta name="theme-color" content="#0b0c0f" />
+  <meta name="apple-mobile-web-app-capable" content="yes" />
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent" />
   <link rel="manifest" href="./manifest.webmanifest" />
-  <title>eCompanion Body</title>
+  <title>eCompanion</title>
   <style>
-    :root{color-scheme:dark;font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:#0b0b0f;color:#f5f5f7}*{box-sizing:border-box}body{margin:0;min-height:100vh;background:radial-gradient(circle at top,#1a1630 0,#0b0b0f 36%,#070709 100%)}main{max-width:760px;margin:0 auto;padding:calc(env(safe-area-inset-top) + 28px) 18px calc(env(safe-area-inset-bottom) + 32px)}h1{margin:0;font-size:32px;letter-spacing:-.03em}.sub{color:#a8a8b3;margin:8px 0 24px}.card{background:rgba(22,22,28,.78);border:1px solid rgba(255,255,255,.08);border-radius:22px;padding:18px;margin:14px 0;backdrop-filter:blur(16px)}label{display:block;font-size:13px;color:#b8b8c4;margin:12px 0 6px}input,textarea{width:100%;border:1px solid rgba(255,255,255,.1);background:#0d0d12;color:#fff;border-radius:13px;padding:13px 14px;font-size:16px}textarea{resize:none;min-height:48px;max-height:140px}.row{display:grid;grid-template-columns:1fr 1fr;gap:10px}.actions{display:flex;gap:10px;flex-wrap:wrap;margin-top:16px}button{border:0;border-radius:999px;padding:12px 16px;font-weight:700;background:#f4f4f7;color:#09090c}button.secondary{background:#25252d;color:#fff}button:disabled{opacity:.5}.status{display:inline-flex;align-items:center;gap:8px;font-size:14px;color:#bdbdc8}.dot{width:9px;height:9px;border-radius:50%;background:#686873}.dot.ok{background:#73e6a3}.caps{display:flex;flex-wrap:wrap;gap:7px;margin-top:12px}.cap{font-size:12px;padding:7px 9px;border-radius:999px;background:#202028;color:#cfcfda}.cap.on{background:#252d27;color:#abf2c3}pre{overflow:auto;white-space:pre-wrap;word-break:break-word;background:#09090d;border-radius:14px;padding:12px;color:#c7c7d2;min-height:72px}.micro{font-size:12px;color:#8e8e99;margin-top:10px}.chat-head{display:flex;align-items:center;justify-content:space-between;gap:12px}.chat-name{font-size:20px;font-weight:800;letter-spacing:-.02em}.chat-meta{font-size:12px;color:#8e8e99;margin-top:3px}.messages{display:flex;flex-direction:column;gap:10px;min-height:220px;max-height:52vh;overflow:auto;padding:16px 2px}.bubble{max-width:84%;padding:11px 13px;border-radius:16px;line-height:1.42;white-space:pre-wrap;overflow-wrap:anywhere}.bubble.user{align-self:flex-end;background:#f4f4f7;color:#111116;border-bottom-right-radius:5px}.bubble.assistant{align-self:flex-start;background:#24242c;color:#f4f4f7;border-bottom-left-radius:5px}.bubble.system{align-self:center;background:#17171d;color:#9c9ca7;font-size:12px}.empty-chat{margin:auto;color:#777783;text-align:center;font-size:13px;line-height:1.5;padding:24px}.chat-form{display:grid;grid-template-columns:minmax(0,1fr) auto;align-items:end;gap:9px}.chat-form button{min-height:48px}.voice-bar{display:flex;align-items:center;gap:9px;flex-wrap:wrap;margin-top:10px}.voice-bar button{min-height:44px}.voice-state{font-size:12px;color:#8e8e99;flex:1;min-width:140px}.voice-listening{background:#f4f4f7!important;color:#111116!important}.debug-title{font-size:13px;color:#aaaab5}@media(max-width:520px){.row{grid-template-columns:1fr}.chat-form{grid-template-columns:1fr}.chat-form button{width:100%}.voice-bar{display:grid;grid-template-columns:1fr 1fr}.voice-state{grid-column:1/-1}.voice-bar button{width:100%}}
+    :root{color-scheme:dark;--bg:#0b0c0f;--panel:#121419;--panel2:#181b21;--line:#272b33;--text:#f5f6f8;--soft:#c5cbd4;--muted:#8f98a5;--ok:#72d29a;--bad:#ef8585;--safe-top:env(safe-area-inset-top,0px);--safe-bottom:env(safe-area-inset-bottom,0px);font-family:Inter,ui-sans-serif,system-ui,-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;background:var(--bg);color:var(--text)}*{box-sizing:border-box}html,body{margin:0;min-height:100%;background:var(--bg)}body{min-height:100dvh}button,input,textarea{font:inherit}.app{max-width:880px;margin:0 auto;min-height:100dvh;padding:calc(var(--safe-top) + 14px) 14px calc(var(--safe-bottom) + 24px)}.top{display:flex;align-items:center;justify-content:space-between;gap:16px;padding:8px 4px 18px}.identity{display:flex;align-items:center;gap:11px}.mark{width:38px;height:38px;border-radius:13px;background:#f3f4f6;color:#111318;display:grid;place-items:center;font-size:12px;font-weight:900}.name{font-weight:850;letter-spacing:-.025em}.status{display:flex;align-items:center;gap:8px;color:var(--muted);font-size:13px}.dot{width:8px;height:8px;border-radius:50%;background:#656d79;box-shadow:0 0 0 4px rgba(101,109,121,.09)}.dot.ok{background:var(--ok);box-shadow:0 0 0 4px rgba(114,210,154,.09)}.hero{padding:22px 18px 16px}.eyebrow{font-size:11px;letter-spacing:.14em;text-transform:uppercase;color:var(--muted);font-weight:800}.hero h1{font-size:clamp(32px,10vw,54px);line-height:.98;letter-spacing:-.055em;margin:9px 0 10px}.hero p{margin:0;color:var(--soft);line-height:1.55;max-width:50ch}.surface{border:1px solid var(--line);background:var(--panel);border-radius:24px}.chat{overflow:hidden}.chat-head{display:flex;align-items:center;justify-content:space-between;gap:12px;padding:15px 16px;border-bottom:1px solid var(--line)}.chat-name{font-size:17px;font-weight:800;letter-spacing:-.02em}.chat-meta{font-size:12px;color:var(--muted);margin-top:3px}.icon-btn{width:40px;height:40px;border-radius:13px;border:1px solid var(--line);background:var(--panel2);color:var(--text)}.messages{display:flex;flex-direction:column;gap:10px;height:min(53dvh,580px);min-height:340px;overflow:auto;padding:18px 14px;overscroll-behavior:contain;scroll-behavior:smooth}.bubble{max-width:86%;padding:11px 13px;border-radius:17px;line-height:1.48;white-space:pre-wrap;overflow-wrap:anywhere}.bubble.user{align-self:flex-end;background:#f2f3f6;color:#111318;border-bottom-right-radius:5px}.bubble.assistant{align-self:flex-start;background:var(--panel2);border:1px solid var(--line);border-bottom-left-radius:5px}.bubble.system{align-self:center;color:var(--muted);font-size:12px}.empty-chat{margin:auto;text-align:center;color:var(--muted);font-size:14px;line-height:1.55;max-width:300px}.composer{border-top:1px solid var(--line);padding:10px}.composer-box{display:grid;grid-template-columns:44px minmax(0,1fr) auto;gap:7px;align-items:end;background:var(--panel2);border:1px solid var(--line);border-radius:18px;padding:6px}.composer textarea{width:100%;border:0;outline:0;resize:none;min-height:44px;max-height:150px;background:transparent;color:var(--text);padding:11px 7px;font-size:16px;line-height:1.4}.composer button{min-height:44px;border:0;border-radius:13px;font-weight:800}.send{background:#f3f4f6;color:#111318;padding:0 15px}.voice{background:transparent;color:var(--text);font-size:18px}.voice[disabled],.send[disabled]{opacity:.38}.voice-status{font-size:11px;color:var(--muted);padding:0 14px 10px;min-height:24px}.setup{margin-top:14px;padding:18px}.setup h2{margin:7px 0 7px;font-size:22px;letter-spacing:-.035em}.setup p{margin:0 0 14px;color:var(--muted);line-height:1.5;font-size:14px}.pair-row{display:grid;grid-template-columns:1fr auto;gap:8px}.pair-row input{min-width:0;border:1px solid var(--line);background:var(--panel2);color:var(--text);border-radius:14px;padding:13px 14px;font-size:16px}.primary{border:0;border-radius:14px;background:#f2f3f6;color:#111318;padding:12px 15px;font-weight:800}.secondary{border:1px solid var(--line);border-radius:13px;background:var(--panel2);color:var(--text);padding:11px 13px;font-weight:700}.attention{margin-top:14px;padding:14px 15px;border:1px solid var(--line);border-radius:16px;color:var(--soft);font-size:13px;line-height:1.45;background:#101217}.advanced{margin-top:14px}.advanced summary{cursor:pointer;color:var(--muted);font-size:13px;padding:10px 3px}.advanced-body{padding:14px;border:1px solid var(--line);border-radius:17px;background:var(--panel)}label{display:block;font-size:12px;color:var(--muted);margin:10px 0 6px}input{width:100%;border:1px solid var(--line);background:var(--panel2);color:var(--text);border-radius:13px;padding:12px 13px}.actions{display:flex;flex-wrap:wrap;gap:8px;margin-top:13px}.caps{display:flex;flex-wrap:wrap;gap:6px;margin-top:12px}.cap{font-size:11px;padding:6px 8px;border-radius:999px;border:1px solid var(--line);color:var(--muted)}.cap.on{color:var(--soft)}.sr-debug{display:none!important}.footer{padding:18px 6px 6px;color:#666f7b;font-size:11px;text-align:center}@media(min-width:700px){.app{padding-left:22px;padding-right:22px}.hero{padding:32px 22px 20px}.messages{height:min(58dvh,640px)}.chat{border-radius:28px}}@media(max-width:480px){.app{padding-left:10px;padding-right:10px}.top{padding-left:6px;padding-right:6px}.hero{padding-left:10px;padding-right:10px}.pair-row{grid-template-columns:1fr}.pair-row .primary{width:100%}.messages{height:52dvh;min-height:330px}.composer-box{grid-template-columns:42px minmax(0,1fr) auto}}@media(prefers-reduced-motion:reduce){*{scroll-behavior:auto!important}}
   </style>
 </head>
 <body>
-  <main>
-    <h1>eCompanion Body</h1>
-    <p class="sub">Platform-independent device surface for the eCompanion Runtime.</p>
+  <main class="app">
+    <header class="top">
+      <div class="identity"><div class="mark">EC</div><div><div class="name">eCompanion</div><div class="status"><span id="statusDot" class="dot"></span><span id="statusText">Connecting…</span></div></div></div>
+    </header>
 
-    <section class="card">
-      <div class="status"><span id="statusDot" class="dot"></span><span id="statusText">Not paired</span></div>
-      <div id="capabilities" class="caps"></div>
+    <section class="hero">
+      <div class="eyebrow">Your companion</div>
+      <h1 id="mobileHero">Lola, with you.</h1>
+      <p id="mobileIntro">Pick up the conversation from your phone without managing the systems underneath it.</p>
     </section>
 
-    <section class="card">
+    <section class="surface chat" aria-label="Companion conversation">
       <div class="chat-head">
-        <div>
-          <div id="chatTitle" class="chat-name">Companion</div>
-          <div id="chatMeta" class="chat-meta">Pair this body to start chatting.</div>
-        </div>
-        <button id="refreshChatBtn" class="secondary" type="button">Refresh</button>
+        <div><div id="chatTitle" class="chat-name">Lola</div><div id="chatMeta" class="chat-meta">Connecting to your conversation…</div></div>
+        <button id="refreshChatBtn" class="icon-btn" type="button" aria-label="Refresh conversation">↻</button>
       </div>
-      <div id="messages" class="messages"><div class="empty-chat">No chat loaded.</div></div>
-      <form id="chatForm" class="chat-form">
-        <textarea id="chatInput" rows="1" maxlength="20000" autocomplete="off" placeholder="Message…"></textarea>
-        <button id="sendBtn" type="submit">Send</button>
+      <div id="messages" class="messages" aria-live="polite"><div class="empty-chat">Connecting to Lola…</div></div>
+      <form id="chatForm" class="composer">
+        <div class="composer-box">
+          <button id="voiceBtn" class="voice" type="button" aria-label="Talk to Lola">◉</button>
+          <textarea id="chatInput" rows="1" maxlength="20000" autocomplete="off" enterkeyhint="send" placeholder="Talk to Lola…" aria-label="Message Lola"></textarea>
+          <button id="sendBtn" class="send" type="submit">Send</button>
+        </div>
+        <div class="voice-status"><span id="voiceState">Voice checking…</span> <button id="speakToggle" class="sr-debug" type="button" aria-pressed="true">Replies on</button></div>
       </form>
-      <div class="voice-bar">
-        <button id="voiceBtn" class="secondary" type="button">Talk</button>
-        <button id="speakToggle" class="secondary" type="button" aria-pressed="true">Replies on</button>
-        <span id="voiceState" class="voice-state">Voice adapter checking…</span>
-      </div>
     </section>
 
-    <section class="card">
-      <label for="runtimeBase">Runtime base URL</label>
-      <input id="runtimeBase" inputmode="url" placeholder="https://runtime.example.com" />
+    <section id="setupSection" class="surface setup" hidden>
+      <div class="eyebrow">Connect this device</div>
+      <h2>Bring Lola onto this phone.</h2>
+      <p>Use the one-time pairing code from eCompanion. This phone keeps only its own revocable device credential.</p>
+      <div class="pair-row"><input id="pairingCode" autocomplete="one-time-code" autocapitalize="none" spellcheck="false" inputmode="text" placeholder="Pairing code" aria-label="Pairing code" /><button id="pairBtn" class="primary" type="button">Connect</button></div>
+      <div id="pairingHelp" class="attention">Once connected, the technical setup disappears and this opens directly into your companion.</div>
+    </section>
 
-      <div class="row">
-        <div>
-          <label for="deviceLabel">Device label</label>
-          <input id="deviceLabel" placeholder="My iPhone" />
+    <details class="advanced">
+      <summary>Device settings</summary>
+      <div class="advanced-body">
+        <label for="deviceLabel">Device name</label><input id="deviceLabel" placeholder="My iPhone" />
+        <label for="runtimeBase">Runtime connection</label><input id="runtimeBase" inputmode="url" autocomplete="off" aria-label="Runtime connection" />
+        <div class="actions">
+          <button id="connectBtn" class="secondary" type="button">Reconnect</button>
+          <button id="syncDeviceBtn" class="secondary" type="button">Refresh capabilities</button>
+          <button id="availableBtn" class="secondary" type="button">Available</button>
+          <button id="offlineBtn" class="secondary" type="button">Offline</button>
+          <button id="forgetBtn" class="secondary" type="button">Disconnect this device</button>
         </div>
-        <div>
-          <label for="pairingCode">Pairing code</label>
-          <input id="pairingCode" autocomplete="one-time-code" autocapitalize="none" spellcheck="false" placeholder="One-time code from eHub" />
-        </div>
+        <div id="capabilities" class="caps" aria-label="Device capabilities"></div>
       </div>
+    </details>
 
-      <div class="actions">
-        <button id="pairBtn">Pair body</button>
-        <button id="connectBtn" class="secondary">Check pairing</button>
-        <button id="syncDeviceBtn" class="secondary">Sync capabilities</button>
-        <button id="availableBtn" class="secondary">Available</button>
-        <button id="offlineBtn" class="secondary">Offline</button>
-        <button id="forgetBtn" class="secondary">Forget local pairing</button>
-      </div>
-      <p class="micro">The Runtime root bearer is never entered or stored here. After one-time pairing this body keeps only its revocable, self-scoped device credential.</p>
-    </section>
-
-    <section class="card">
-      <strong class="debug-title">Body identity</strong>
-      <pre id="bodyInfo"></pre>
-    </section>
-
-    <section class="card">
-      <strong class="debug-title">Runtime response</strong>
-      <pre id="output">Ready.</pre>
-    </section>
+    <pre id="bodyInfo" class="sr-debug"></pre>
+    <pre id="output" class="sr-debug">Ready.</pre>
+    <div class="footer">Private device access stays scoped to this device.</div>
   </main>
   <script type="module" src="./app.js"></script>
 </body>
