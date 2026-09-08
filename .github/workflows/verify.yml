@@ -63,6 +63,17 @@ jobs:
           found = [value for value in forbidden if value in combined]
           assert not found, f'forbidden body-client authority found: {found}'
 
+          assert '<summary>This phone</summary>' in html
+          assert 'id="runtimeBase" type="hidden"' in html
+          owner_visible_forbidden = [
+              '>Runtime connection<',
+              '>Refresh capabilities<',
+              '>Available<',
+              '>Offline<'
+          ]
+          visible_found = [value for value in owner_visible_forbidden if value in html]
+          assert not visible_found, f'developer controls leaked into owner UX: {visible_found}'
+
           assert '/api/v1/device-pairing/claim' in js
           assert '/api/v1/body/me' in js
           assert '/api/v1/body/device' in js
