@@ -14,6 +14,11 @@ const sendBtn = $('sendBtn');
 const voiceBtn = $('voiceBtn');
 const speakToggle = $('speakToggle');
 const voiceState = $('voiceState');
+const setupSection = $('setupSection');
+const mobileHero = $('mobileHero');
+const mobileIntro = $('mobileIntro');
+
+const DEFAULT_RUNTIME = 'https://ecompanion-ene7.onrender.com';
 
 const STORAGE = Object.freeze({
   deviceId: 'ecompanion.device_id',
@@ -35,22 +40,23 @@ function normalizedHttpUrl(value) {
   try {
     parsed = new URL(raw);
   } catch {
-    throw new Error('Runtime base URL must be a valid http:// or https:// URL');
+    throw new Error('The eCompanion connection address is invalid');
   }
   if (parsed.protocol !== 'http:' && parsed.protocol !== 'https:') {
-    throw new Error('Runtime base URL must start with http:// or https://');
+    throw new Error('The eCompanion connection must use http:// or https://');
   }
   return parsed.href.replace(/\/$/, '');
 }
 
 const runtimeFromQuery = new URLSearchParams(location.search).get('runtime');
 const savedRuntime = localStorage.getItem(STORAGE.runtimeBase) || '';
-let initialRuntime = '';
+let initialRuntime = DEFAULT_RUNTIME;
 try {
-  initialRuntime = normalizedHttpUrl(runtimeFromQuery || savedRuntime);
-  if (runtimeFromQuery && initialRuntime) localStorage.setItem(STORAGE.runtimeBase, initialRuntime);
+  initialRuntime = normalizedHttpUrl(runtimeFromQuery || savedRuntime || DEFAULT_RUNTIME);
+  if (initialRuntime) localStorage.setItem(STORAGE.runtimeBase, initialRuntime);
 } catch {
-  initialRuntime = '';
+  initialRuntime = DEFAULT_RUNTIME;
+  localStorage.setItem(STORAGE.runtimeBase, initialRuntime);
 }
 
 const hashParams = new URLSearchParams(location.hash.replace(/^#/, ''));
@@ -60,10 +66,10 @@ if (pendingRelinkCode) {
 }
 
 $('runtimeBase').value = initialRuntime;
-$('deviceLabel').value = localStorage.getItem(STORAGE.deviceLabel) || 'eCompanion Body';
+$('deviceLabel').value = localStorage.getItem(STORAGE.deviceLabel) || 'My iPhone';
 if (pendingRelinkCode) {
   $('pairingCode').value = pendingRelinkCode;
-  $('pairBtn').textContent = 'Reconnect body';
+  $('pairBtn').textContent = 'Reconnect';
 }
 
 const voiceAdapter = createVoiceAdapter({
@@ -74,9 +80,10 @@ const voiceAdapter = createVoiceAdapter({
       .catch((error) => renderChatError(error));
   },
   onState: ({ listening, speakReplies, text }) => {
-    voiceBtn.textContent = listening ? 'Stop' : 'Talk';
+    voiceBtn.textContent = listening ? '■' : '◉';
     voiceBtn.classList.toggle('voice-listening', listening);
     voiceBtn.setAttribute('aria-pressed', listening ? 'true' : 'false');
+    voiceBtn.setAttribute('aria-label', listening ? 'Stop listening' : 'Talk to Lola');
     speakToggle.textContent = speakReplies ? 'Replies on' : 'Replies off';
     speakToggle.setAttribute('aria-pressed', speakReplies ? 'true' : 'false');
     voiceState.textContent = text;
@@ -106,20 +113,37 @@ const capabilities = detectCapabilities();
 voiceBtn.disabled = !capabilities.speech_recognition;
 speakToggle.disabled = !capabilities.speech_synthesis;
 if (!capabilities.speech_recognition && capabilities.speech_synthesis) {
-  voiceState.textContent = 'Talk unavailable here · spoken replies available';
+  voiceState.textContent = 'Voice input is unavailable here · spoken replies are available';
 } else if (!capabilities.speech_recognition && !capabilities.speech_synthesis) {
-  voiceState.textContent = 'Browser voice adapter unavailable';
+  voiceState.textContent = 'Voice is unavailable in this browser';
 } else {
   voiceState.textContent = 'Voice ready';
+}
+
+function capabilityLabel(name) {
+  const labels = {
+    display: 'Display',
+    audio_output: 'Audio',
+    microphone: 'Microphone',
+    camera: 'Camera',
+    webrtc: 'Live calls',
+    notifications: 'Notifications',
+    web_push: 'Push',
+    service_worker: 'Background support',
+    standalone: 'Installed app',
+    speech_recognition: 'Voice input',
+    speech_synthesis: 'Spoken replies'
+  };
+  return labels[name] || name.replaceAll('_', ' ');
 }
 
 function renderCapabilities() {
   capabilitiesEl.replaceChildren();
   for (const [name, enabled] of Object.entries(capabilities)) {
-    const el = document.createElement('span');
-    el.className = `cap${enabled ? ' on' : ''}`;
-    el.textContent = `${name}: ${enabled ? 'yes' : 'no'}`;
-    capabilitiesEl.append(el);
+    const item = document.createElement('span');
+    item.className = `cap${enabled ? ' on' : ''}`;
+    item.textContent = enabled ? capabilityLabel(name) : `${capabilityLabel(name)} unavailable`;
+    capabilitiesEl.append(item);
   }
 }
 
@@ -129,6 +153,21 @@ function currentToken() {
 
 function currentCredentialId() {
   return localStorage.getItem(STORAGE.credentialId) || '';
+}
+
+function renderPairingSurface() {
+  const paired = Boolean(currentToken());
+  setupSection.hidden = paired && !pendingRelinkCode;
+  if (paired) {
+    mobileHero.textContent = `${chatTitle.textContent || 'Lola'}, with you.`;
+    mobileIntro.textContent = 'Continue the conversation from your phone. Device access stays scoped to this device.';
+  } else if (pendingRelinkCode) {
+    mobileHero.textContent = 'Reconnect this phone.';
+    mobileIntro.textContent = 'Your one-time reconnect link is ready. No system settings are required.';
+  } else {
+    mobileHero.textContent = 'Bring Lola with you.';
+    mobileIntro.textContent = 'Connect this phone once, then eCompanion opens directly into your companion.';
+  }
 }
 
 function bodyIdentity(extra = {}) {
@@ -157,15 +196,15 @@ function setStatus(ok, text) {
 }
 
 function runtimeBase() {
-  const value = normalizedHttpUrl($('runtimeBase').value);
-  if (!value) throw new Error('Runtime base URL is required');
+  const value = normalizedHttpUrl($('runtimeBase').value || DEFAULT_RUNTIME);
+  if (!value) throw new Error('eCompanion is not connected to Runtime');
   localStorage.setItem(STORAGE.runtimeBase, value);
   return value;
 }
 
 function deviceDescriptor() {
   const label = $('deviceLabel').value.trim();
-  if (!label) throw new Error('Device label is required');
+  if (!label) throw new Error('Give this device a name');
   localStorage.setItem(STORAGE.deviceLabel, label);
   return {
     id: deviceId,
@@ -182,16 +221,18 @@ function deviceDescriptor() {
 function runtimeErrorMessage(payload, status) {
   const code = String(payload?.error || '').trim();
   const message = String(payload?.message || '').trim();
-  if (code && message && message !== 'Runtime operation failed') return `${code}: ${message}`;
+  if (code === 'BODY_COMPANION_NOT_CONFIGURED') return 'This phone is connected, but no companion is assigned to it yet.';
+  if (status === 401 || status === 403) return 'This device connection is no longer authorized. Reconnect this phone.';
+  if (message && message !== 'Runtime operation failed') return message;
+  if (status >= 500) return 'eCompanion is temporarily unavailable.';
   if (code) return code;
-  if (message) return message;
-  return `HTTP ${status}`;
+  return 'That action could not be completed.';
 }
 
 async function parseResponse(response) {
   const contentType = String(response.headers.get('content-type') || '').toLowerCase();
   if (!contentType.includes('application/json')) {
-    const error = new Error('Runtime endpoint returned a non-JSON response. Check that Runtime base URL points to eCompanion Runtime, not the body website.');
+    const error = new Error('eCompanion returned an unexpected response.');
     error.payload = {
       status: response.status,
       content_type: contentType || null,
@@ -221,7 +262,7 @@ async function pairingRequest(code) {
 
 async function bodyRequest(path, { method = 'GET', body } = {}) {
   const token = currentToken();
-  if (!token) throw new Error('This body is not paired yet');
+  if (!token) throw new Error('Connect this phone to eCompanion first.');
   const response = await fetch(`${runtimeBase()}${path}`, {
     method,
     headers: {
@@ -240,7 +281,7 @@ async function run(action) {
     show(result);
     return result;
   } catch (error) {
-    setStatus(false, 'Connection/action failed');
+    setStatus(false, 'Needs attention');
     show({ ok: false, error: error.message, details: error.payload || null });
     throw error;
   }
@@ -251,7 +292,7 @@ function renderMessages(items) {
   if (!items.length) {
     const empty = document.createElement('div');
     empty.className = 'empty-chat';
-    empty.textContent = 'No messages yet. Say something.';
+    empty.textContent = 'No messages yet. Say something to Lola.';
     messagesEl.append(empty);
     return;
   }
@@ -265,10 +306,25 @@ function renderMessages(items) {
   messagesEl.scrollTop = messagesEl.scrollHeight;
 }
 
+function renderPendingTurn(content) {
+  const empty = messagesEl.querySelector('.empty-chat');
+  if (empty) empty.remove();
+  const user = document.createElement('div');
+  user.className = 'bubble user';
+  user.textContent = content;
+  const pending = document.createElement('div');
+  pending.className = 'bubble system';
+  pending.dataset.pending = 'true';
+  pending.textContent = 'Lola is responding…';
+  messagesEl.append(user, pending);
+  messagesEl.scrollTop = messagesEl.scrollHeight;
+}
+
 function renderChat(chat) {
-  chatTitle.textContent = String(chat?.companion?.name || 'Companion');
-  chatMeta.textContent = chat?.conversation ? 'Connected · conversation active' : 'Connected · start a conversation';
+  chatTitle.textContent = String(chat?.companion?.name || 'Lola');
+  chatMeta.textContent = chat?.conversation ? 'Conversation connected' : 'Ready when you are';
   renderMessages(Array.isArray(chat?.messages) ? chat.messages : []);
+  renderPairingSurface();
 }
 
 function renderChatError(error) {
@@ -276,19 +332,20 @@ function renderChatError(error) {
   const empty = document.createElement('div');
   empty.className = 'empty-chat';
   if (error?.payload?.error === 'BODY_COMPANION_NOT_CONFIGURED') {
-    empty.textContent = 'This paired body still needs a companion assignment in eHub Body setup.';
-    chatMeta.textContent = 'Body paired · companion setup required';
+    empty.textContent = 'This phone is connected, but a companion still needs to be assigned in eCompanion.';
+    chatMeta.textContent = 'Companion assignment needed';
   } else if (!currentToken() && pendingRelinkCode) {
-    empty.textContent = 'Reconnect link ready. Tap Reconnect body below.';
+    empty.textContent = 'Your reconnect link is ready. Tap Reconnect below.';
     chatMeta.textContent = 'Reconnect ready';
   } else if (!currentToken()) {
-    empty.textContent = 'Pair this body first.';
-    chatMeta.textContent = 'Not paired';
+    empty.textContent = 'Connect this phone once to start talking to Lola.';
+    chatMeta.textContent = 'Device not connected';
   } else {
-    empty.textContent = error?.message || 'Chat unavailable.';
-    chatMeta.textContent = 'Chat unavailable';
+    empty.textContent = error?.message || 'Conversation unavailable.';
+    chatMeta.textContent = 'Conversation unavailable';
   }
   messagesEl.append(empty);
+  renderPairingSurface();
 }
 
 async function loadChat() {
@@ -313,29 +370,34 @@ async function refreshSelf() {
     assigned_actor_id: device?.assigned_actor_id ?? null,
     runtime_device: device ?? null
   });
-  setStatus(true, device?.assigned_actor_id ? 'Paired · actor assigned' : 'Paired · no actor assigned');
+  setStatus(true, device?.assigned_actor_id ? 'Connected' : 'Connected · setup needed');
+  renderPairingSurface();
   return result;
 }
 
 async function sendChatContent(value, { clearInput = false } = {}) {
   const content = String(value || '').trim();
-  if (!content) throw new Error('Message is empty');
+  if (!content) throw new Error('Write a message first.');
 
   sendBtn.disabled = true;
   chatInput.disabled = true;
   voiceBtn.disabled = true;
+  renderPendingTurn(content);
   try {
     const result = await bodyRequest('/api/v1/body/chat/turn', {
       method: 'POST',
       body: { content }
     });
     if (clearInput || chatInput.value.trim() === content) chatInput.value = '';
-    setStatus(true, 'Chat connected');
+    setStatus(true, 'Connected');
     await loadChat();
     setPresence('available').catch(() => null);
     const assistantText = result.chat?.turn?.assistantMessage?.content;
     if (assistantText) voiceAdapter.speak(assistantText);
     return result;
+  } catch (error) {
+    await loadChat().catch(() => renderChatError(error));
+    throw error;
   } finally {
     sendBtn.disabled = false;
     chatInput.disabled = false;
@@ -346,33 +408,41 @@ async function sendChatContent(value, { clearInput = false } = {}) {
 
 $('pairBtn').addEventListener('click', () => run(async () => {
   const code = $('pairingCode').value.trim();
-  if (!code) throw new Error('Pairing code is required');
-  const result = await pairingRequest(code);
-  const token = result.credential?.token;
-  if (!token) {
-    const error = new Error('Runtime pairing response did not include a device credential');
-    error.payload = result;
-    throw error;
-  }
+  if (!code) throw new Error('Enter the one-time pairing code.');
+  $('pairBtn').disabled = true;
+  $('pairBtn').textContent = pendingRelinkCode ? 'Reconnecting…' : 'Connecting…';
+  try {
+    const result = await pairingRequest(code);
+    const token = result.credential?.token;
+    if (!token) {
+      const error = new Error('eCompanion did not return a device credential.');
+      error.payload = result;
+      throw error;
+    }
 
-  if (result.device?.id) {
-    deviceId = result.device.id;
-    localStorage.setItem(STORAGE.deviceId, deviceId);
-  }
-  if (result.device?.label) {
-    $('deviceLabel').value = result.device.label;
-    localStorage.setItem(STORAGE.deviceLabel, result.device.label);
-  }
+    if (result.device?.id) {
+      deviceId = result.device.id;
+      localStorage.setItem(STORAGE.deviceId, deviceId);
+    }
+    if (result.device?.label) {
+      $('deviceLabel').value = result.device.label;
+      localStorage.setItem(STORAGE.deviceLabel, result.device.label);
+    }
 
-  localStorage.setItem(STORAGE.deviceToken, token);
-  if (result.credential?.id) localStorage.setItem(STORAGE.credentialId, result.credential.id);
-  $('pairingCode').value = '';
-  pendingRelinkCode = '';
-  $('pairBtn').textContent = 'Pair body';
-  setStatus(true, result.relinked ? 'Body reconnected' : 'Body paired');
-  renderBodyIdentity({ assigned_actor_id: result.device?.assigned_actor_id ?? null });
-  await loadChat().catch(() => null);
-  return result;
+    localStorage.setItem(STORAGE.deviceToken, token);
+    if (result.credential?.id) localStorage.setItem(STORAGE.credentialId, result.credential.id);
+    $('pairingCode').value = '';
+    pendingRelinkCode = '';
+    setStatus(true, result.relinked ? 'Reconnected' : 'Connected');
+    renderBodyIdentity({ assigned_actor_id: result.device?.assigned_actor_id ?? null });
+    renderPairingSurface();
+    await loadChat().catch(() => null);
+    setPresence('available').catch(() => null);
+    return result;
+  } finally {
+    $('pairBtn').disabled = false;
+    $('pairBtn').textContent = 'Connect';
+  }
 }).catch(() => {}));
 
 $('connectBtn').addEventListener('click', () => run(async () => {
@@ -392,7 +462,7 @@ $('syncDeviceBtn').addEventListener('click', () => run(async () => {
       metadata: descriptor.metadata
     }
   });
-  setStatus(true, 'Body capabilities synced');
+  setStatus(true, 'Device refreshed');
   return result;
 }).catch(() => {}));
 
@@ -408,7 +478,7 @@ async function setPresence(state) {
       }
     }
   });
-  setStatus(state !== 'offline', `Presence: ${state}`);
+  setStatus(state !== 'offline', state === 'available' ? 'Connected' : state === 'away' ? 'Connected · away' : 'Offline');
   return result;
 }
 
@@ -422,9 +492,21 @@ $('chatForm').addEventListener('submit', (event) => {
     .catch((error) => renderChatError(error));
 });
 
+chatInput.addEventListener('input', () => {
+  chatInput.style.height = 'auto';
+  chatInput.style.height = `${Math.min(150, chatInput.scrollHeight)}px`;
+});
+
+chatInput.addEventListener('keydown', (event) => {
+  if (event.key === 'Enter' && !event.shiftKey && !event.isComposing && window.matchMedia('(pointer:fine)').matches) {
+    event.preventDefault();
+    $('chatForm').requestSubmit();
+  }
+});
+
 voiceBtn.addEventListener('click', () => {
   if (!currentToken()) {
-    const error = new Error('Pair this body before using voice');
+    const error = new Error('Connect this phone before using voice.');
     renderChatError(error);
     show({ ok: false, error: error.message });
     return;
@@ -448,9 +530,10 @@ $('forgetBtn').addEventListener('click', () => {
   voiceAdapter.stopSpeaking();
   localStorage.removeItem(STORAGE.deviceToken);
   localStorage.removeItem(STORAGE.credentialId);
-  setStatus(false, 'Pairing removed from this browser');
+  setStatus(false, 'Device disconnected');
   renderBodyIdentity();
-  renderChatError(new Error('Pair this body first.'));
+  renderPairingSurface();
+  renderChatError(new Error('Connect this phone to eCompanion.'));
   show({ ok: true, local_pairing_removed: true, note: 'Server-side revocation remains owner-controlled.' });
 });
 
@@ -463,15 +546,20 @@ document.addEventListener('visibilitychange', () => {
 
 renderCapabilities();
 renderBodyIdentity();
+renderPairingSurface();
 if (currentToken()) {
   refreshSelf()
     .then(() => Promise.allSettled([loadChat(), setPresence(document.visibilityState === 'visible' ? 'available' : 'away')]))
-    .catch(() => setStatus(false, 'Stored pairing needs attention'));
+    .catch(() => {
+      setStatus(false, 'Reconnect needed');
+      renderPairingSurface();
+    });
 } else if (pendingRelinkCode) {
-  setStatus(false, 'Reconnect link ready');
-  renderChatError(new Error('Reconnect this body.'));
+  setStatus(false, 'Reconnect ready');
+  renderChatError(new Error('Reconnect this phone.'));
 } else {
-  renderChatError(new Error('Pair this body first.'));
+  setStatus(false, 'Not connected');
+  renderChatError(new Error('Connect this phone.'));
 }
 
 if ('serviceWorker' in navigator) {
