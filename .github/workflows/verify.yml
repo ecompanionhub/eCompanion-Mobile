@@ -92,7 +92,7 @@ jobs:
           assert manifest['short_name'] == 'Lola'
           assert manifest['description'] == 'Your private eCompanion on this phone.'
           assert 'body surface' not in manifest['description'].lower()
-          assert "const CACHE = 'ecompanion-mobile-v4';" in sw
+          assert "const CACHE = 'ecompanion-mobile-v5';" in sw
           assert "'./attachments.js'" in sw
           assert 'ecompanion-body-v2' not in sw
 
