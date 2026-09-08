@@ -1,283 +1,190 @@
 # HEADQUARTERS REPORT
 
 ## CURRENT
-Updated: 2026-09-08
-Engineer: ◐ Iris 👩🏽‍🎨
+Updated: 2026-09-08T21:27+02:00
+Engineer: ◐ Iris 👩🏽‍🎨 + ⌖ Vera 👩🏾‍🔧 Production
 Project: eCompanion Interfaces — Mobile / Body
-Mode: WORK
+Mode: WORK / PRODUCTION FIX
 Canonical source: `ecompanionhub/eCompanion-Mobile` → `main`
-Current production / physical target: Render `ecompanion-mobile` (`srv-daat0mu7bikc73c9fiv0`); physical iPhone install not claimed.
-Current functional release: `d6a5917a5e42d0fab96b92709c0271ba53292f6e`
-Current verified deploy: `dep-dag4qq3ncjis738ng57g` → LIVE
+Current production target: Render `ecompanion-mobile` (`srv-daat0mu7bikc73c9fiv0`); physical iPhone install not claimed.
+Current functional release: `246ba6f6866e665bb03cbb41965d903f3ee2ded2`
+Current verified deploy: `dep-dag61erncjis738p4hf0` → LIVE
 
-Standing crew/authority update only: ✧ Yara 🙋🏽‍♀️ is now recognized as the Social Lola implementation worker for `ecompanionhub/eCompanion-Lola-Social` → `main`. This report/doctrine update changes no Mobile product bytes and does not upgrade product proof.
+✧ Yara 🙋🏽‍♀️ remains the Social Lola implementation worker for `ecompanionhub/eCompanion-Lola-Social`; this does not change Mobile authority.
 
 ## PRODUCT RESULT
-Mobile remains a materially richer live-companion conversation surface.
+The temporary 650 KB Mobile attachment ceiling is gone.
 
-The owner can send Lola text plus real image/audio/video/document attachments through the canonical Runtime Body conversation, see selected files before sending, see persisted attachment descriptors after history reload, interrupt Lola's browser voice playback by speaking/typing, and continue speaking while a turn is in flight without causing an unsafe concurrent turn.
+Runtime production now exposes enough Body JSON capacity for the existing canonical multimodal contract, and Mobile once again enforces the intended semantic limits only:
+- maximum 8 attachments;
+- maximum 20 MiB per attachment;
+- maximum 25 MiB combined per turn.
 
-The current Runtime Body HTTP route limits JSON requests to 1,000,000 bytes. Mobile therefore fails closed at 650 KB total selected binary data so allowed uploads fit the real current transport rather than advertising Runtime's larger semantic attachment limits as if they were transport proof.
+Installed Mobile shells are advanced to `ecompanion-mobile-v5` so the updated attachment behavior replaces the cached v4 module.
 
-## CREW / AUTHORITY ROUTING
-- ◐ Iris 👩🏽‍🎨 owns Mobile/Interfaces user-facing experience.
-- ✦ Lola 🙋🏼‍♀️ remains the Lola product/intelligence authority.
-- ✧ Yara 🙋🏽‍♀️ owns Social Lola implementation in `eCompanion-Lola-Social`.
-- ↔ Cleo 🙋🏽‍♀️ owns Discord/Telegram/provider transport and delivery lifecycle.
+This source is TESTED and DEPLOYED. A real authenticated browser/iPhone upload above 650 KB has not been exercised from this execution environment, so larger owner uploads are not claimed TARGET VERIFIED or END-TO-END PROVEN yet.
 
-When Mobile exposes Social Lola state/behavior, it must consume canonical Lola/Runtime/Integrations truth. It must not duplicate Social state or create browser-owned Social truth.
+## VERA PRODUCTION FIX
 
-Social-Lola implementation dependencies route to Yara. Provider transport/account/gateway/delivery dependencies route to Cleo. Interfaces does not absorb Social Lola implementation and the owner is not used as the Iris/Yara/Cleo message bus.
+### Incident — temporary 650 KB client mitigation remained after Runtime transport repair
+Status: FIXED + TESTED + DEPLOYED
 
-## COMPLETED
-- Multimodal composer: text-only, file-only or text + files.
-- Typed image/audio/video/document preparation with SHA-256, canonical Base64 and Runtime-compatible metadata.
-- Selected-file removal and persisted attachment-descriptor presentation.
-- Voice barge-in: owner speech/typing stops current browser TTS.
-- Voice remains available during an in-flight turn; recognized correction is preserved as the next draft instead of concurrent dispatch.
-- Installed shell updated to cache the multimodal module.
-- Fail-closed 650 KB current wire limit added after verifying Runtime's 1 MB Body JSON ceiling.
-- Regression protection for attachment digest/type/count/wire limit, voice barge-in and authority boundaries.
-- Permanent Interfaces doctrine now distinguishes ✧ Yara / Social Lola implementation from ↔ Cleo / provider transport.
+Owning dependency fixed first:
+- ⌖ Vera repaired Runtime `/api/v1/body/chat/turn` to use a route-specific 36 MiB JSON ceiling while unrelated Runtime routes keep the generic 1 MB limit.
+- Runtime replacement release `434484a49a42d8092e62c09529546c0e805323f9` / `dep-dag5ue67bikc73d84irg` is LIVE.
+
+Mobile changes:
+- Removed `MAX_WIRE_ATTACHMENT_BYTES = 650_000` and its temporary wire-level rejection from `web/attachments.js`.
+- Preserved canonical semantic limits: 8 files, 20 MiB/item, 25 MiB/turn.
+- Reworked attachment regressions to cover item/count/combined semantic boundaries, including exact accepted limits.
+- Advanced installed shell cache `ecompanion-mobile-v4 → ecompanion-mobile-v5`.
+
+First Mobile candidate exposed a stale CI assertion requiring the old v4 cache name. The product behavior tests themselves passed. Vera updated the static boundary gate to require v5, then allowed the full verification run to complete.
+
+Exact current test proof:
+- GitHub Actions `verify-mobile` run `34268693649`: SUCCESS on `246ba6f6866e665bb03cbb41965d903f3ee2ded2`.
+- Web job: SUCCESS.
+- JavaScript syntax: PASS.
+- Multimodal + voice behavior: PASS.
+- Mobile boundary/static gate: PASS.
+- Native BodyAgentCore build: PASS.
+- BodyAgentCore iOS Simulator build: PASS.
+- ECompanionBodyApp iOS Simulator build: PASS.
+- Native BodyAgentCore tests: PASS.
+
+Deployment proof:
+- Render exact deploy `dep-dag61erncjis738p4hf0` on `246ba6f6866e665bb03cbb41965d903f3ee2ded2`: LIVE.
 
 ## PROOF STATUS
-### IMPLEMENTED
-IMPLEMENTED — current Mobile capabilities exist in canonical source. Crew/authority routing is standing doctrine/report metadata only.
+### Canonical larger multimodal Mobile limits
+IMPLEMENTED: YES.
 
-### TESTED
-TESTED — `verify-mobile` run `34260544342` succeeded on exact functional release `d6a5917a5e42d0fab96b92709c0271ba53292f6e`:
-- web JavaScript syntax PASS;
-- multimodal/wire-limit tests PASS;
-- voice barge-in test PASS;
-- Mobile boundary/static gate PASS;
-- BodyAgentCore build PASS;
-- BodyAgentCore iOS Simulator build PASS;
-- ECompanionBodyApp iOS Simulator build PASS;
-- BodyAgentCore tests PASS.
+TESTED: YES — `verify-mobile` run `34268693649` completed SUCCESS on exact current release.
 
-No new product test is claimed for the doctrine/report-only Yara routing update because no product bytes changed.
+DEPLOYED: YES — Render deploy `dep-dag61erncjis738p4hf0` is LIVE.
 
-### DEPLOYED
-DEPLOYED — functional Mobile release `d6a5917…` remains LIVE via Render deploy `dep-dag4qq3ncjis738ng57g`.
+TARGET VERIFIED: PARTIAL — exact web release is live; no authenticated real browser/iPhone >650 KB turn was executed here.
 
-### TARGET VERIFIED
-NOT TARGET VERIFIED for an authenticated real browser/iPhone conversation. External page probing from this execution environment remains DNS-unresolved. Render LIVE is deployment proof only.
+END-TO-END PROVEN: NO for >650 KB owner upload until a real authenticated Body conversation turn carrying such an attachment completes and is visible in persisted conversation history.
 
-NOT TARGET VERIFIED for a physical native iPhone install.
+### Existing multimodal/voice client behavior
+IMPLEMENTED: YES.
+TESTED: YES on current release.
+DEPLOYED: YES.
+TARGET VERIFIED: no new real authenticated owner-session proof in this run.
+END-TO-END PROVEN: no for persistent autonomous Lola task journey.
 
-### END-TO-END PROVEN
-NOT END-TO-END PROVEN for the requested persistent autonomous Lola task journey. Mobile still lacks canonical task progress/control/artifact contracts and real NODE/provider task proof.
+## COMPLETED
+- Restored Mobile to Runtime's canonical 8 / 20 MiB / 25 MiB attachment semantics.
+- Removed the obsolete 650 KB transport workaround after Runtime fixed the owning wire contract.
+- Updated multimodal regressions to the real current contract.
+- Refreshed installed PWA shell to v5.
+- Fixed the stale cache-version CI assertion exposed by the first release candidate.
+- Completed the strongest available full Mobile verification across web and native simulator paths.
+- Deployed the exact tested current release.
+
+Existing deployed capabilities remain:
+- text-only, file-only and text + files conversation turns;
+- typed image/audio/video/document preparation with SHA-256 and canonical Base64;
+- attachment selection/removal and persisted descriptor presentation;
+- owner-interruptible browser voice playback;
+- no unsafe concurrent owner turn when speech arrives during an in-flight turn.
 
 ## PRODUCTION / PHYSICAL STATE
 - Mobile web: Render `srv-daat0mu7bikc73c9fiv0`, publish path `web`, auto-deploy enabled.
-- Exact functional release: `d6a5917a5e42d0fab96b92709c0271ba53292f6e`.
-- Exact verified functional deploy: `dep-dag4qq3ncjis738ng57g` → LIVE.
-- Native simulator build/tests: green on same release.
-- Physical iPhone: not verified in this run.
-- Physical NODE-01: no new Mobile proof; Iris does not infer online/current state from stale historical device data.
+- Functional release: `246ba6f6866e665bb03cbb41965d903f3ee2ded2`.
+- Deploy: `dep-dag61erncjis738p4hf0` → LIVE.
+- GitHub Actions: `34268693649` → SUCCESS.
+- Installed shell cache: `ecompanion-mobile-v5`.
+- Physical iPhone: NOT TARGET VERIFIED in this run.
+- Physical NODE-01: no new Mobile proof; Mobile does not infer device availability from stale evidence.
 
 ## BLOCKERS
-- Runtime Body multimodal semantic limits and HTTP transport limit are inconsistent: attachment validation allows 20 MiB each / 25 MiB total, while Body `readJsonBody()` currently defaults to 1,000,000 bytes.
-- No device/owner-safe canonical task/action read + realtime event/control contract for Mobile working presence, pause, cancel, resume or superseded intent.
-- Current conversation attachment path persists descriptors, not a durable owner-resolvable binary task-artifact reference.
-- Provider-grade low-latency duplex voice is not yet available to Mobile through a proven canonical realtime transport.
-- Authenticated real-browser/physical-iPhone target verification remains unavailable from this execution environment.
+- Real authenticated >650 KB browser/iPhone Body upload is not yet TARGET VERIFIED.
+- Mobile still lacks a device/owner-safe canonical Runtime Task progress/control feed for working presence and pause/cancel/resume/supersede UI.
+- Current conversation attachment path persists descriptors, not durable owner-resolvable task artifact binaries.
+- Provider-grade low-latency duplex voice is not yet proven available to Mobile.
+- Physical native iPhone install remains unverified.
+
+The old Runtime Body 1 MB wire mismatch is RESOLVED and is no longer a cross-project blocker.
 
 ## NEXT EXECUTABLE WORK
-Continue truthful Mobile conversation UX over existing Body contracts. As soon as the owning contracts land, integrate:
-1. canonical task/activity state + pause/cancel/resume;
-2. durable artifact cards/downloads;
-3. coherent larger multimodal Body transport;
-4. realtime duplex voice.
+- Target-verify one real authenticated Mobile attachment above 650 KB through `POST /api/v1/body/chat/turn` and confirm persisted attachment history. Do not fake this without a real paired owner/device session.
+- Consume canonical Task progress/control only when Runtime exposes a browser/device-safe owner contract; do not use executor/private-service APIs as fake activity state.
+- Integrate durable artifact references and realtime duplex voice when their owning contracts are production-ready.
 
-For any Social Lola UI dependency, read `eCompanion-Lola-Social/HEADQUARTERS_REPORT.md` when materially relevant and route Social implementation work to ✧ Yara. Do not route provider transport to Yara.
-
-Do not use executor-claim endpoints, browser service credentials or local fake task state to get there.
+For Social Lola UI dependencies, route Social implementation to ✧ Yara and provider transport to ↔ Cleo; Mobile remains presentation/client authority.
 
 ## CROSS-PROJECT CHANGES
-### CHANGE: Interfaces routing recognizes Social Lola worker
-Changed by:
-eCompanion Interfaces / ◐ Iris
-Status:
-IMPLEMENTED — doctrine/report routing
-Change type:
-AUTHORITY + REPORTING
-What changed:
-Interfaces cross-project routing now recognizes ✧ Yara 🙋🏽‍♀️ as the Social Lola implementation worker for `ecompanionhub/eCompanion-Lola-Social` → `main`.
-Affected projects:
-- eCompanion Lola Social / ✧ Yara
-- eCompanion Integrations / ↔ Cleo
-- eCompanion Lola / ✦ Lola
-Canonical contract / behavior now:
-- Social Lola implementation/state/behavior dependencies → ✧ Yara / `eCompanion-Lola-Social`.
-- Discord/Telegram/provider transport/account/gateway/delivery lifecycle → ↔ Cleo / Integrations.
-- Lola product/intelligence authority remains ✦ Lola.
-- Interfaces remains presentation/client authority only.
-Expected action by other projects:
-### eCompanion Lola Social / ✧ Yara
-NO ACTION
-Interfaces will consume canonical Social Lola contracts when a user-facing Social surface needs them; Yara remains the implementation owner.
-### eCompanion Integrations / ↔ Cleo
-NO ACTION
-Provider transport authority is unchanged and is not routed to Yara.
-### eCompanion Lola / ✦ Lola
-NO ACTION
-Lola product/intelligence authority is unchanged.
-Compatibility:
-BACKWARD COMPATIBLE
-Rollout dependency:
-NONE
-Production state:
-REPORTING/DOCTRINE ONLY; no Mobile product deployment required.
-Do not:
-- Do not absorb Social Lola implementation into Interfaces.
-- Do not route provider transport to Yara.
-- Do not duplicate Social state in the browser.
-- Do not ask the owner to coordinate Iris/Yara/Cleo dependencies.
-Evidence:
-- Mobile `AGENTS.md` updated with explicit Social Lola/Yara/Cleo boundaries.
-- This `HEADQUARTERS_REPORT.md` now carries the same routing.
 
-### CHANGE: Mobile multimodal companion turns
+### CHANGE: Mobile multimodal transport workaround retired
 Changed by:
-eCompanion Interfaces / ◐ Iris
+⌖ Vera Production across eCompanion Runtime + eCompanion Mobile
+
 Status:
 DEPLOYED
+
 Change type:
-UI + BEHAVIOR
+CROSS-SERVICE PRODUCTION FIX + UI BEHAVIOR + TEST
+
 What changed:
-Mobile sends typed multimodal content through existing `POST /api/v1/body/chat/turn` and renders persisted attachment descriptors from `GET /api/v1/body/chat`.
+Runtime's Body route now carries the existing canonical multimodal attachment contract, and Mobile no longer imposes the temporary 650 KB wire workaround.
+
 Affected projects:
 - eCompanion Runtime / ◉ Maeve
-Canonical contract / behavior now:
-Runtime remains conversation and attachment truth; Mobile creates no media/persistence authority.
-Available capability / interface:
-- `POST /api/v1/body/chat/turn`
-- `GET /api/v1/body/chat`
-Expected action by other projects:
-### Runtime / ◉ Maeve
-NO ACTION for the existing multimodal content schema.
-Compatibility:
-BACKWARD COMPATIBLE
-Rollout dependency:
-NONE
-Production state:
-DEPLOYED
-Do not:
-Do not treat persisted attachment descriptors as durable downloadable artifact storage.
-Evidence:
-`d6a5917…`; run `34260544342` PASS; deploy `dep-dag4qq3ncjis738ng57g` LIVE.
+- eCompanion Mobile / ◐ Iris
 
-### CHANGE: Mobile fails closed on actual Body HTTP wire ceiling
-Changed by:
-eCompanion Interfaces / ◐ Iris
-Status:
-DEPLOYED
-Change type:
-BEHAVIOR + CONTRACT CONSUMPTION
-What changed:
-Mobile now permits at most 650 KB total binary attachment data per turn so Base64 + text/JSON stays safely inside the current 1,000,000-byte Body request ceiling.
-Why:
-The Runtime multimodal validator's 20/25 MiB semantic limits cannot currently traverse the default Body HTTP reader.
-Affected projects:
-- eCompanion Runtime / ◉ Maeve
-Expected action by other projects:
-### Runtime / ◉ Maeve
-REQUIRED
-Make the Body multimodal turn HTTP/request-body limit coherent with the intended typed attachment contract, with explicit tested limits and failure semantics. Do not require Mobile to use companion-service media credentials or an alternate authority.
-Compatibility:
-MIGRATION REQUIRED to unlock intended large attachment sizes; current small-file behavior remains backward compatible.
-Rollout dependency:
-Runtime fix DEPLOYED/TESTED → Iris raises/removes temporary Mobile wire ceiling → Mobile TESTED/DEPLOYED.
-Production state:
-Current Mobile mitigation DEPLOYED; Runtime contract fix NOT YET PROVEN.
-Do not:
-Do not advertise 20/25 MiB in owner UX while the real Body request transport rejects those payloads.
-Evidence:
-Runtime `src/http-body.ts` defines `MAX_JSON_BODY_BYTES = 1_000_000`; Mobile regression verifies the 650 KB fail-closed bound.
+Canonical behavior:
+- Runtime semantic attachment authority remains 8 attachments, 20 MiB/item, 25 MiB combined.
+- Body chat has enough route-specific JSON capacity for canonical Base64 payloads.
+- Mobile enforces the semantic limits instead of an obsolete lower transport workaround.
 
-### CHANGE: Browser voice playback is owner-interruptible
-Changed by:
-eCompanion Interfaces / ◐ Iris
-Status:
-DEPLOYED
-Change type:
-UI + BEHAVIOR
-What changed:
-Speaking or typing interrupts local Lola TTS. Speech heard during an in-flight Runtime turn becomes a draft rather than a second concurrent turn.
-Affected projects:
-- eCompanion Runtime / ◉ Maeve
-- eCompanion Integrations / ↔ Cleo
-Expected action by other projects:
-### Runtime / ◉ Maeve
-NO ACTION for this local playback behavior.
-### Integrations / ↔ Cleo
-NO ACTION for this local playback behavior.
 Compatibility:
-BACKWARD COMPATIBLE
-Rollout dependency:
-NONE
-Production state:
-DEPLOYED
+BACKWARD COMPATIBLE for existing smaller uploads; larger uploads are newly unblocked at source/deployment level.
+
 Do not:
-Do not describe local TTS interruption as canonical task cancellation or provider-grade duplex voice.
+- Do not globally raise unrelated Runtime JSON routes.
+- Do not increase semantic attachment limits as part of this repair.
+- Do not claim larger owner uploads E2E until a real authenticated upload is observed.
+
 Evidence:
-Voice regression PASS in run `34260544342`.
+- Runtime current product-code commit `434484a49a42d8092e62c09529546c0e805323f9` / deploy `dep-dag5ue67bikc73d84irg` LIVE.
+- Mobile changes `6cea85372cf708c2ff261f2858d08bf8a98d6a56`, `e6d98b49be7faaab158425eebcd0273a8c12e12f`, `76c0c5d3681201683e7bc8045e78a8416e011041`.
+- CI gate repair/current release `246ba6f6866e665bb03cbb41965d903f3ee2ded2`.
+- `verify-mobile` run `34268693649` SUCCESS.
+- Render deploy `dep-dag61erncjis738p4hf0` LIVE.
 
 ## CROSS-PROJECT BLOCKERS
+
 ### CROSS-PROJECT BLOCKER: live task progress and owner interruption
-Blocked capability:
-Working presence plus truthful pause/cancel/resume/supersede while Lola performs long-running work.
-Owning dependency:
-eCompanion Runtime / ◉ Maeve
-Required from dependency:
-Device/owner-safe task/action state + realtime event/control contract, including non-terminal `claimed`, current action/step, observations/results and authorized interruption semantics.
-Why required:
-Private action reads use companion-service auth; `/api/v1/body/actions/claim` is executor authority, not an owner activity feed.
-Current dependency status:
-Runtime canonical Action lifecycle/reconciliation: DEPLOYED. Mobile-safe task consumer/control contract: NOT YET PROVEN AVAILABLE.
-Can continue meanwhile:
-YES
-Executable work remaining meanwhile:
-Conversation/multimodal/voice/accessibility UX using current scoped Body contracts.
+Owning dependency: eCompanion Runtime / ◉ Maeve
+Required: device/owner-safe task state + realtime event/control contract suitable for Mobile, not companion-service or executor authority.
+Current status: Runtime Task v1 is deployed for Private companion consumption; Mobile-safe owner consumption remains not proven.
 
 ### CROSS-PROJECT BLOCKER: durable task artifacts
-Blocked capability:
-Generated/downloaded artifacts remain reopenable and usable after reload/reconnect.
-Owning dependency:
-eCompanion Runtime / ◉ Maeve plus the producing authority.
-Required from dependency:
-Canonical owner/device-safe artifact/media references attachable to task/conversation state.
-Current dependency status:
-NOT YET PROVEN AVAILABLE on the Body client contract.
-Can continue meanwhile:
-YES
-Executable work remaining meanwhile:
-Incoming multimodal turns and persisted descriptors are already implemented.
+Owning dependency: eCompanion Runtime / ◉ Maeve plus producing authority.
+Required: owner/device-safe artifact/media reference contract.
+Current status: not yet proven on Body client contract.
 
 ### CROSS-PROJECT BLOCKER: realtime duplex voice
-Blocked capability:
-Low-latency bidirectional voice with true task interruption while work continues.
-Owning dependency:
-eCompanion Runtime / ◉ Maeve and eCompanion Integrations / ↔ Cleo where provider transport is used.
-Required from dependency:
-Canonical realtime streaming/session lifecycle with interruption, reconnect and machine-readable failure.
-Current dependency status:
-NOT YET PROVEN AVAILABLE to Mobile.
-Can continue meanwhile:
-YES
-Executable work remaining meanwhile:
-Browser voice input/output and playback barge-in are deployed.
+Owning dependency: eCompanion Runtime / ◉ Maeve + eCompanion Integrations / ↔ Cleo where provider transport is involved.
+Required: canonical realtime streaming/session lifecycle with interruption/reconnect/failure semantics.
+Current status: browser speech/TTS remains deployed; provider-grade client path not proven.
 
 ## PROVENANCE
 Canonical source: GitHub `ecompanionhub/eCompanion-Mobile` → `main`.
-Functional product release/deploy remain `d6a5917…` / `dep-dag4qq3ncjis738ng57g` LIVE.
-Standing doctrine commit recognizing Yara: `fa36ba07f979a03ab32501d326b46205da45fa07`.
+Canonical current product release: `246ba6f6866e665bb03cbb41965d903f3ee2ded2`.
+Canonical web production: Render `srv-daat0mu7bikc73c9fiv0`, deploy `dep-dag61erncjis738p4hf0` LIVE.
+
+Physical iPhone proof is separate from source/CI/Render proof.
 
 ## EVIDENCE
-- `verify-mobile` run `34260544342`: web SUCCESS + native-core SUCCESS.
-- Render deploy `dep-dag4qq3ncjis738ng57g`: LIVE on exact tested functional release.
-- Runtime `src/http-body.ts`: default JSON limit 1,000,000 bytes.
-- Mobile multimodal/wire-limit + voice tests: PASS.
-- Mobile `AGENTS.md`: explicit Yara/Social Lola vs Cleo/provider transport authority split.
+- Runtime Body transport dependency repaired and current Runtime release LIVE.
+- `6cea85372cf708c2ff261f2858d08bf8a98d6a56` — remove obsolete 650 KB Mobile wire cap.
+- `e6d98b49be7faaab158425eebcd0273a8c12e12f` — canonical semantic attachment regression coverage.
+- `76c0c5d3681201683e7bc8045e78a8416e011041` — PWA cache v5.
+- First current release run exposed only stale v4 static-gate expectation after product behavior tests passed.
+- `246ba6f6866e665bb03cbb41965d903f3ee2ded2` — static-gate repair and exact current release.
+- GitHub Actions `34268693649` — web SUCCESS + native-core SUCCESS.
+- Render `dep-dag61erncjis738p4hf0` — LIVE.
 - No secrets recorded.
