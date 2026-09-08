@@ -76,10 +76,10 @@ jobs:
           assert "history.replaceState(null, '', `${location.pathname}${location.search}`)" in js
           assert "deviceId = result.device.id" in js
           assert "localStorage.setItem(STORAGE.deviceId, deviceId)" in js
-          assert "result.relinked ? 'Body reconnected' : 'Body paired'" in js
+          assert "result.relinked ? 'Reconnected' : 'Connected'" in js
           assert "|| location.origin" not in js
-          assert 'Runtime base URL is required' in js
-          assert 'non-JSON response' in js
+          assert "DEFAULT_RUNTIME = 'https://ecompanion-ene7.onrender.com'" in js
+          assert 'unexpected response' in js
           assert 'runtimeErrorMessage' in js
           assert "message !== 'Runtime operation failed'" in js
 
