@@ -6,87 +6,85 @@ Engineer: ◐ Iris 👩🏽‍🎨
 Project: eCompanion Interfaces — Mobile / Body
 Mode: WORK
 Canonical source: `ecompanionhub/eCompanion-Mobile` → `main`
+Current source head: `a150b8bd1a90a39f033f9c7c8709bd7a685ea061` (`AGENTS.md` standing WORK contract).
 Current production / physical target: Render static site `ecompanion-mobile` (`srv-daat0mu7bikc73c9fiv0`); no new physical iPhone install is claimed.
-Current release/version where relevant: tested/deployed product head `91996bc73eaaa8bf112d8a41e8a63830bd207714`; latest web-byte changes include `679ac0a40257ec515cb92375b1646a5119b4e8f8`, `83791025f90570b37006f810b1106d140df3fc53`, and `26733fc16f5b2eba980f18f35840e0f20d22dff7`.
+Current release/version where relevant: current Render deploy `dep-dag3vl15efls73fi9kig` LIVE on source head `a150b8bd1a90a39f033f9c7c8709bd7a685ea061`. Functional published `web/` product bytes are unchanged from tested product head `91996bc73eaaa8bf112d8a41e8a63830bd207714`.
 
-`HEADQUARTERS_REPORT.md` is outside the `web/` publish tree. A report-only commit can trigger Render auto-deploy without changing functional web bytes; functional product claims are therefore tied to the tested `web/` tree, not merely the newest metadata commit.
+GitHub compare `91996bc… → a150b8b…` changes only `HEADQUARTERS_REPORT.md` and `AGENTS.md`; no `web/` or native product bytes changed.
 
 ## PRODUCT RESULT
-The owner-facing Mobile product is now a daily companion client instead of a technical Body/Runtime control surface.
+The owner-facing Mobile product is a daily companion client instead of a technical Body/Runtime control surface.
 
 The owner can:
-- open the Mobile web/PWA into the assigned companion conversation without configuring Runtime URLs;
-- pair only when the phone actually needs a device credential;
-- keep the visible conversation when a transient refresh/send failure occurs instead of losing the chat surface;
-- get an explicit reconnect state when a device credential expires or is revoked;
-- avoid blind resend behavior after an uncertain send result, reducing duplicate-message risk;
-- open `This phone` only after the device is connected, rename the connected device through the canonical scoped `/api/v1/body/device` contract, and forget the local credential without the UI pretending that local deletion equals server-side revocation;
+- open directly into the assigned companion conversation without configuring Runtime URLs;
+- pair/reconnect only when a device credential is actually needed;
+- keep visible conversation state through recoverable refresh/send failures;
+- receive an explicit reconnect state when the scoped device credential expires or is revoked;
+- avoid blind resend after an uncertain send result;
+- rename a connected device through the canonical scoped Body device contract;
+- forget the local credential without the UI pretending that local deletion equals server-side revocation;
 - install the PWA under the owner-facing identity `eCompanion` / `Lola` rather than `eCompanion Body` / `eBody`.
 
-The installed shell cache was advanced after the companion-first redesign so an existing installed PWA can replace the older cached shell when the new service worker activates.
+The doctrine/`AGENTS.md` update in the current source head is standing work-environment metadata only; it adds no new owner-facing capability.
 
 ## COMPLETED
 - Companion-first Mobile conversation home.
-- Product-owned production Runtime routing; stale locally saved Runtime URL no longer silently overrides production configuration.
-- Conditional pairing/reconnect surface.
-- Scoped device credential remains the only Mobile authorization authority.
-- Recoverable conversation failures preserve already-visible messages where safe.
-- 401/403 device-auth failure clears the invalid local credential and returns the owner to a real reconnect path.
-- Uncertain send failure warns the owner to refresh before sending again instead of automatically duplicating the turn.
-- Owner-facing technical controls (`Runtime connection`, manual availability/offline controls, raw capability refresh) removed from normal UI.
-- Connected-only device settings now expose a real `Save changes` action backed by the existing Body device update contract.
-- Local credential removal is labeled honestly as `Forget on this phone`; server-side revocation is not faked.
-- Installed PWA identity changed to `eCompanion` / `Lola` with owner-facing copy.
-- Service-worker shell cache advanced to `ecompanion-mobile-v3`.
-- Product gate now protects companion-first install identity, connected-only settings, product-owned Runtime routing, reconnect behavior and duplicate-risk messaging.
+- Product-owned production Runtime routing; stale locally saved Runtime URL no longer controls production routing.
+- Conditional pairing/reconnect surface using scoped device credentials.
+- Recoverable conversation failure UX with duplicate-send caution on uncertain result.
+- Owner-facing technical Runtime/presence/capability controls removed from normal UX.
+- Connected-only `This phone` settings with real `Save changes` through `PUT /api/v1/body/device`.
+- Honest local `Forget on this phone` semantics.
+- Companion-first PWA install identity and refreshed service-worker shell cache.
+- Regression gate for authority boundaries, recovery UX, installed identity and native BodyAgent invariants.
 
 ## PROOF STATUS
 ### IMPLEMENTED
-- IMPLEMENTED — all capabilities above exist in canonical `eCompanion-Mobile/main`.
+- IMPLEMENTED — capabilities above exist in canonical source.
 
 ### TESTED
-- TESTED — GitHub Actions `verify-mobile` run `34252191240` on head `91996bc73eaaa8bf112d8a41e8a63830bd207714` completed successfully.
-- TESTED — web job: JavaScript syntax PASS and Mobile boundary/static product gate PASS.
-- TESTED — native-core job: Swift build PASS, BodyAgentCore iOS Simulator build PASS, ECompanionBodyApp iOS Simulator build PASS, BodyAgentCore tests PASS.
-- An earlier new assertion failed only because test copy used lowercase `server-side` while the product copy used `Server-side`; the assertion was corrected before the successful run. No unchanged failing CI was repeatedly rerun.
+- TESTED — GitHub Actions `verify-mobile` run `34252191240` on product head `91996bc73eaaa8bf112d8a41e8a63830bd207714` completed successfully.
+- TESTED — web JavaScript syntax PASS and Mobile boundary/static product gate PASS.
+- TESTED — native BodyAgentCore build PASS, iOS Simulator BodyAgentCore build PASS, ECompanionBodyApp iOS Simulator build PASS, BodyAgentCore tests PASS.
 
 ### DEPLOYED
-- DEPLOYED — Render `ecompanion-mobile` deploy `dep-dag3jhgae00c738d3sq0` reached LIVE on exact tested head `91996bc73eaaa8bf112d8a41e8a63830bd207714`.
+- DEPLOYED — current Render deploy `dep-dag3vl15efls73fi9kig` is LIVE on source head `a150b8bd1a90a39f033f9c7c8709bd7a685ea061`.
+- DEPLOYED functional product bytes are the already-tested `91996bc…` `web/` tree; compare confirms later commits changed only report/standing instructions.
 
 ### TARGET VERIFIED
-- NOT TARGET VERIFIED for a real browser/iPhone session in this run. Render LIVE is deployment proof, not external client proof.
-- NOT TARGET VERIFIED for a physical native iPhone install. iOS Simulator build/test proof is not physical-device proof.
+- NOT TARGET VERIFIED for a real browser/iPhone session in this run.
+- NOT TARGET VERIFIED for a physical native iPhone install. Simulator proof is not physical-device proof.
 
 ### END-TO-END PROVEN
-- NOT END-TO-END PROVEN for physical iPhone chat/voice/background/notification continuity in this run.
-- NOT END-TO-END PROVEN for owner action progress because Mobile does not yet have a device/owner-safe canonical Runtime action-read contract.
+- NOT END-TO-END PROVEN for physical iPhone chat/voice/background/notification continuity.
+- NOT END-TO-END PROVEN for owner-visible canonical action progress because Mobile lacks a device/owner-safe Runtime action-read contract.
 
 ## PRODUCTION / PHYSICAL STATE
 Web production:
 - Render service: `ecompanion-mobile`
 - Service ID: `srv-daat0mu7bikc73c9fiv0`
-- Source: `https://github.com/ecompanionhub/eCompanion-Mobile`
-- Branch: `main`
+- Source: GitHub `ecompanionhub/eCompanion-Mobile` → `main`
 - Publish path: `web`
 - Auto deploy: yes
-- Tested product head: `91996bc73eaaa8bf112d8a41e8a63830bd207714`
-- Verified LIVE deploy for that head: `dep-dag3jhgae00c738d3sq0`
+- Current deploy: `dep-dag3vl15efls73fi9kig` → LIVE
+- Current source head deployed: `a150b8bd1a90a39f033f9c7c8709bd7a685ea061`
+- Last tested functional product head: `91996bc73eaaa8bf112d8a41e8a63830bd207714`
 
-Native source remains in the same repository. Native BodyAgentCore and iOS Simulator app build are TESTED on the same head, but there is no new physical iPhone installation/target verification claim.
+Native source remains in the same repository. Native Simulator build/tests are green on `91996bc…`; no physical iPhone install is claimed.
 
 ## BLOCKERS
-- Real browser/iPhone target verification is still absent from the current execution environment.
-- Owner-friendly issuance/approval of new device pairing grants remains Runtime authority; Mobile consumes the grant but does not mint authorization.
-- Truthful canonical action progress/result cannot yet be shown directly in Mobile from a device credential because Runtime's current action-read API is companion-service authenticated, not a device/owner-safe Mobile read contract.
-- Server-side credential revocation remains owner/Runtime authority; the Mobile device credential cannot silently promote itself into revocation authority.
+- Real browser/iPhone target verification is not currently available from this execution environment.
+- Owner-friendly new-device pairing grant issuance remains Runtime authority; Mobile may claim a grant but must not mint authorization.
+- Canonical action progress/result cannot yet be safely read by the Mobile device credential because the current Runtime action-read path is companion-service authenticated.
+- Server-side credential revocation remains owner/Runtime authority.
 
 ## NEXT EXECUTABLE WORK
-Within Interfaces authority, continue improving the daily Mobile experience over existing real Body contracts: conversation continuity, pairing/reconnect clarity, install/offline behavior, accessibility and truthful presentation of state already exposed to the device.
+Continue owner-facing Mobile work over existing scoped Body contracts: conversation continuity, reconnect/offline/install resilience, accessibility, and truthful state already available to the device.
 
-Do not invent action progress, pairing authority, provider delivery state or server-side credential revocation in the client. Integrate those immediately when the owning contracts become available.
+Integrate action progress, pairing issuance, provider delivery, persona state, or richer device execution as soon as the owning project exposes the required safe canonical contract. Do not build substitutes in Mobile.
 
 ## CROSS-PROJECT CHANGES
-### CHANGE: Mobile uses product-owned Runtime routing and scoped Body contracts
+### CHANGE: Mobile consumes scoped Body contracts without exposing backend architecture
 Changed by:
 eCompanion Interfaces / Iris
 Status:
@@ -94,13 +92,11 @@ DEPLOYED
 Change type:
 UI + BEHAVIOR
 What changed:
-The normal Mobile experience no longer exposes Runtime URL configuration or technical device-state controls. Production Runtime routing is product configuration. Device pairing, self state, device update, presence and chat continue through the existing canonical Runtime Body APIs with the device-scoped credential.
-Why:
-The owner should use the companion product, not configure backend architecture.
+The normal Mobile product uses the existing Runtime Body APIs and device-scoped credential while hiding Runtime URLs, raw presence/capability controls and backend architecture from the owner.
 Affected projects:
-- eCompanion Runtime
+- eCompanion Runtime / Maeve
 Canonical contract / behavior now:
-Mobile consumes the existing Runtime Body contract and does not create local identity, policy, companion or action truth.
+Mobile remains a scoped client. Runtime owns pairing authority, conversation truth, neutral action truth and authorization.
 Available capability / interface:
 - `POST /api/v1/device-pairing/claim`
 - `GET /api/v1/body/me`
@@ -111,7 +107,7 @@ Available capability / interface:
 Expected action by other projects:
 ### Runtime / Maeve
 NO ACTION
-Existing Body contracts are consumed unchanged by this release.
+Existing Body contracts are consumed unchanged by the current release.
 Compatibility:
 BACKWARD COMPATIBLE
 Rollout dependency:
@@ -119,75 +115,57 @@ NONE
 Production state:
 DEPLOYED
 Do not:
-Do not reintroduce browser-owned companion identity, browser-only policy truth, owner-entered Runtime infrastructure configuration, or raw technical controls into the normal Mobile flow.
+Do not reintroduce browser-owned companion identity, browser-only policy/action truth, owner-entered Runtime infrastructure configuration, or raw technical controls into the normal Mobile flow.
 Evidence:
-- product recovery/routing gate head `91996bc73eaaa8bf112d8a41e8a63830bd207714`
-- Render deploy `dep-dag3jhgae00c738d3sq0` LIVE
-- verify-mobile run `34252191240` PASS
+- tested product head `91996bc73eaaa8bf112d8a41e8a63830bd207714`
+- verify run `34252191240` PASS
+- current Render deploy `dep-dag3vl15efls73fi9kig` LIVE
 
 ## CROSS-PROJECT BLOCKERS
 ### CROSS-PROJECT BLOCKER: canonical action progress in Mobile
 Blocked capability:
-Owner-visible real action progress/result/verification in the Mobile companion UI.
+Owner-visible real action progress/result/verification in Mobile.
 Owning dependency:
 eCompanion Runtime / Maeve
 Required from dependency:
-A device- or owner-safe read contract that exposes the canonical Runtime action state/result/verification needed by Mobile without embedding a companion-service secret or creating a second action authority.
+A device- or owner-safe read contract for canonical Runtime action state/result/verification without exposing a companion-service secret.
 Why required:
-The deployed canonical Runtime action lifecycle exists, but `/api/companion/operations/actions` is protected by companion-service authentication. Mobile holds a scoped device credential and must not receive service credentials.
+Runtime owns action truth. Mobile holds a scoped device credential and must not create a second action authority or embed service credentials.
 Current dependency status:
-DEPLOYED for Runtime canonical action lifecycle; Mobile-safe action read contract is not currently available/proven.
+Runtime canonical action lifecycle: DEPLOYED. Mobile-safe action read: NOT YET PROVEN AVAILABLE.
 Can continue meanwhile:
 YES
 Executable work remaining meanwhile:
-Conversation, pairing/reconnect, device, install/offline and accessibility UX over current scoped Body contracts.
+Conversation, reconnect, device, install/offline and accessibility UX over current Body contracts.
 
 ### CROSS-PROJECT BLOCKER: owner pairing issuance
 Blocked capability:
-A fully owner-friendly new-device pairing flow originating from the Mobile product without manual backend-level handling.
+Fully owner-friendly new-device pairing initiation.
 Owning dependency:
 eCompanion Runtime / Maeve
 Required from dependency:
-Canonical owner-authorized pairing grant issuance/approval suitable for the intended owner surface.
-Why required:
-Mobile may claim a one-time grant but may not mint authorization itself.
+Canonical owner-authorized pairing grant issuance/approval suitable for an owner surface.
 Current dependency status:
-Claim contract exists; owner-facing issuance path is not proven available to this Mobile surface.
+Claim contract exists; owner-facing issuance path is NOT YET PROVEN AVAILABLE to Mobile.
 Can continue meanwhile:
 YES
 Executable work remaining meanwhile:
-All already-authorized device/client UX work.
+All already-authorized Mobile/client UX work.
 
 ## PROVENANCE
-Canonical Mobile development source:
-- GitHub `ecompanionhub/eCompanion-Mobile` → `main`.
+Canonical Mobile source: GitHub `ecompanionhub/eCompanion-Mobile` → `main`.
 
-Web production:
-- Render service `srv-daat0mu7bikc73c9fiv0`.
-- Render source is the same GitHub repository/branch.
-- Publish path is `web`.
-- Auto-deploy is enabled.
-- Tested/deployed product head: `91996bc73eaaa8bf112d8a41e8a63830bd207714`.
-- Verified LIVE deploy for that head: `dep-dag3jhgae00c738d3sq0`.
+Production: Render `srv-daat0mu7bikc73c9fiv0`, publish path `web`, auto deploy enabled.
 
-Relevant product commits in this wave:
-- `aa2fb9137d7772887cc9dcca7d37ba245265bc2b` — recoverable conversation failures.
-- `0c00637c754aec21399113ee01824e630695f9db` — product-safe reconnect/send uncertainty and canonical Runtime routing.
-- `679ac0a40257ec515cb92375b1646a5119b4e8f8` — connected-only actionable device settings.
-- `83791025f90570b37006f810b1106d140df3fc53` — companion-first installed PWA identity.
-- `26733fc16f5b2eba980f18f35840e0f20d22dff7` — refreshed installed shell cache.
-- `91996bc73eaaa8bf112d8a41e8a63830bd207714` — regression gate covering the resulting product state.
+Current source/deploy head `a150b8bd…` differs from tested product head `91996bc…` only by `HEADQUARTERS_REPORT.md` and root `AGENTS.md`; compare proves no product-byte drift.
 
-Native iOS source is in the same repository, but GitHub source/Simulator proof does not equal physical iPhone installation.
+Root `AGENTS.md` now contains standing Mobile WORK rules: authority boundaries, canonical deploy target, test commands, security/no-fallback rules, peer-report delta rules, proof semantics and reporting requirements.
 
 ## EVIDENCE
-- verify-mobile run `34252191240`: web SUCCESS + native-core SUCCESS.
-- JavaScript syntax: PASS.
-- Mobile boundary/static product gate: PASS.
-- Swift BodyAgentCore build: PASS.
-- BodyAgentCore iOS Simulator build: PASS.
-- ECompanionBodyApp iOS Simulator build: PASS.
-- BodyAgentCore tests: PASS.
-- Render service: `srv-daat0mu7bikc73c9fiv0`.
-- Render tested-head deploy: `dep-dag3jhgae00c738d3sq0` → LIVE.
-- No secrets are recorded in this report.
+- tested functional product head: `91996bc73eaaa8bf112d8a41e8a63830bd207714`
+- verify-mobile run `34252191240`: web SUCCESS + native-core SUCCESS
+- current source head: `a150b8bd1a90a39f033f9c7c8709bd7a685ea061`
+- compare `91996bc… → a150b8b…`: only `HEADQUARTERS_REPORT.md` + `AGENTS.md`
+- Render deploy: `dep-dag3vl15efls73fi9kig` → LIVE
+- root `AGENTS.md` standing contract added at `a150b8bd1a90a39f033f9c7c8709bd7a685ea061`
+- no secrets recorded
