@@ -45,7 +45,7 @@ jobs:
               'deviceLabel', 'output', 'statusDot', 'statusText',
               'capabilities', 'bodyInfo', 'messages', 'chatForm',
               'chatInput', 'sendBtn', 'refreshChatBtn', 'chatTitle', 'chatMeta',
-              'voiceBtn', 'speakToggle', 'voiceState'
+              'chatNotice', 'voiceBtn', 'speakToggle', 'voiceState'
           ]
           missing = [value for value in required_ids if f'id="{value}"' not in html]
           assert not missing, f'missing UI ids: {missing}'
@@ -65,6 +65,8 @@ jobs:
 
           assert '<summary>This phone</summary>' in html
           assert 'id="runtimeBase" type="hidden"' in html
+          assert 'Forget on this phone' in html
+          assert 'server-side revocation remains owner-controlled' in html
           owner_visible_forbidden = [
               '>Runtime connection<',
               '>Refresh capabilities<',
@@ -90,9 +92,16 @@ jobs:
           assert "result.relinked ? 'Reconnected' : 'Connected'" in js
           assert "|| location.origin" not in js
           assert "DEFAULT_RUNTIME = 'https://ecompanion-ene7.onrender.com'" in js
+          assert 'localStorage.removeItem(STORAGE.runtimeBase)' in js
+          assert 'savedRuntime' not in js
           assert 'unexpected response' in js
           assert 'runtimeErrorMessage' in js
           assert "message !== 'Runtime operation failed'" in js
+          assert 'error.status = response.status' in js
+          assert 'clearLocalCredential()' in js
+          assert 'preserveMessages' in js
+          assert 'Your saved messages are still here' in js
+          assert 'Refresh the conversation before sending again to avoid a duplicate message' in js
 
           assert "import { createVoiceAdapter } from './voice.js'" in js
           assert 'speech_recognition' in js
