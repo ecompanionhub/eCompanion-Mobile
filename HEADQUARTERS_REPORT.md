@@ -1,7 +1,7 @@
 # HEADQUARTERS REPORT
 
 ## CURRENT
-Updated: 2026-09-08T20:04+02:00
+Updated: 2026-09-08
 Engineer: ◐ Iris 👩🏽‍🎨
 Project: eCompanion Interfaces — Mobile / Body
 Mode: WORK
@@ -10,12 +10,24 @@ Current production / physical target: Render `ecompanion-mobile` (`srv-daat0mu7b
 Current functional release: `d6a5917a5e42d0fab96b92709c0271ba53292f6e`
 Current verified deploy: `dep-dag4qq3ncjis738ng57g` → LIVE
 
+Standing crew/authority update only: ✧ Yara 🙋🏽‍♀️ is now recognized as the Social Lola implementation worker for `ecompanionhub/eCompanion-Lola-Social` → `main`. This report/doctrine update changes no Mobile product bytes and does not upgrade product proof.
+
 ## PRODUCT RESULT
-Mobile is now a materially richer live-companion conversation surface.
+Mobile remains a materially richer live-companion conversation surface.
 
 The owner can send Lola text plus real image/audio/video/document attachments through the canonical Runtime Body conversation, see selected files before sending, see persisted attachment descriptors after history reload, interrupt Lola's browser voice playback by speaking/typing, and continue speaking while a turn is in flight without causing an unsafe concurrent turn.
 
 The current Runtime Body HTTP route limits JSON requests to 1,000,000 bytes. Mobile therefore fails closed at 650 KB total selected binary data so allowed uploads fit the real current transport rather than advertising Runtime's larger semantic attachment limits as if they were transport proof.
+
+## CREW / AUTHORITY ROUTING
+- ◐ Iris 👩🏽‍🎨 owns Mobile/Interfaces user-facing experience.
+- ✦ Lola 🙋🏼‍♀️ remains the Lola product/intelligence authority.
+- ✧ Yara 🙋🏽‍♀️ owns Social Lola implementation in `eCompanion-Lola-Social`.
+- ↔ Cleo 🙋🏽‍♀️ owns Discord/Telegram/provider transport and delivery lifecycle.
+
+When Mobile exposes Social Lola state/behavior, it must consume canonical Lola/Runtime/Integrations truth. It must not duplicate Social state or create browser-owned Social truth.
+
+Social-Lola implementation dependencies route to Yara. Provider transport/account/gateway/delivery dependencies route to Cleo. Interfaces does not absorb Social Lola implementation and the owner is not used as the Iris/Yara/Cleo message bus.
 
 ## COMPLETED
 - Multimodal composer: text-only, file-only or text + files.
@@ -26,13 +38,14 @@ The current Runtime Body HTTP route limits JSON requests to 1,000,000 bytes. Mob
 - Installed shell updated to cache the multimodal module.
 - Fail-closed 650 KB current wire limit added after verifying Runtime's 1 MB Body JSON ceiling.
 - Regression protection for attachment digest/type/count/wire limit, voice barge-in and authority boundaries.
+- Permanent Interfaces doctrine now distinguishes ✧ Yara / Social Lola implementation from ↔ Cleo / provider transport.
 
 ## PROOF STATUS
 ### IMPLEMENTED
-IMPLEMENTED — all capabilities above exist in canonical Mobile source.
+IMPLEMENTED — current Mobile capabilities exist in canonical source. Crew/authority routing is standing doctrine/report metadata only.
 
 ### TESTED
-TESTED — `verify-mobile` run `34260544342` succeeded on exact release `d6a5917a5e42d0fab96b92709c0271ba53292f6e`:
+TESTED — `verify-mobile` run `34260544342` succeeded on exact functional release `d6a5917a5e42d0fab96b92709c0271ba53292f6e`:
 - web JavaScript syntax PASS;
 - multimodal/wire-limit tests PASS;
 - voice barge-in test PASS;
@@ -42,8 +55,10 @@ TESTED — `verify-mobile` run `34260544342` succeeded on exact release `d6a5917
 - ECompanionBodyApp iOS Simulator build PASS;
 - BodyAgentCore tests PASS.
 
+No new product test is claimed for the doctrine/report-only Yara routing update because no product bytes changed.
+
 ### DEPLOYED
-DEPLOYED — Render deploy `dep-dag4qq3ncjis738ng57g` is LIVE on exact tested release `d6a5917a5e42d0fab96b92709c0271ba53292f6e`.
+DEPLOYED — functional Mobile release `d6a5917…` remains LIVE via Render deploy `dep-dag4qq3ncjis738ng57g`.
 
 ### TARGET VERIFIED
 NOT TARGET VERIFIED for an authenticated real browser/iPhone conversation. External page probing from this execution environment remains DNS-unresolved. Render LIVE is deployment proof only.
@@ -56,7 +71,7 @@ NOT END-TO-END PROVEN for the requested persistent autonomous Lola task journey.
 ## PRODUCTION / PHYSICAL STATE
 - Mobile web: Render `srv-daat0mu7bikc73c9fiv0`, publish path `web`, auto-deploy enabled.
 - Exact functional release: `d6a5917a5e42d0fab96b92709c0271ba53292f6e`.
-- Exact verified deploy: `dep-dag4qq3ncjis738ng57g` → LIVE.
+- Exact verified functional deploy: `dep-dag4qq3ncjis738ng57g` → LIVE.
 - Native simulator build/tests: green on same release.
 - Physical iPhone: not verified in this run.
 - Physical NODE-01: no new Mobile proof; Iris does not infer online/current state from stale historical device data.
@@ -75,9 +90,54 @@ Continue truthful Mobile conversation UX over existing Body contracts. As soon a
 3. coherent larger multimodal Body transport;
 4. realtime duplex voice.
 
+For any Social Lola UI dependency, read `eCompanion-Lola-Social/HEADQUARTERS_REPORT.md` when materially relevant and route Social implementation work to ✧ Yara. Do not route provider transport to Yara.
+
 Do not use executor-claim endpoints, browser service credentials or local fake task state to get there.
 
 ## CROSS-PROJECT CHANGES
+### CHANGE: Interfaces routing recognizes Social Lola worker
+Changed by:
+eCompanion Interfaces / ◐ Iris
+Status:
+IMPLEMENTED — doctrine/report routing
+Change type:
+AUTHORITY + REPORTING
+What changed:
+Interfaces cross-project routing now recognizes ✧ Yara 🙋🏽‍♀️ as the Social Lola implementation worker for `ecompanionhub/eCompanion-Lola-Social` → `main`.
+Affected projects:
+- eCompanion Lola Social / ✧ Yara
+- eCompanion Integrations / ↔ Cleo
+- eCompanion Lola / ✦ Lola
+Canonical contract / behavior now:
+- Social Lola implementation/state/behavior dependencies → ✧ Yara / `eCompanion-Lola-Social`.
+- Discord/Telegram/provider transport/account/gateway/delivery lifecycle → ↔ Cleo / Integrations.
+- Lola product/intelligence authority remains ✦ Lola.
+- Interfaces remains presentation/client authority only.
+Expected action by other projects:
+### eCompanion Lola Social / ✧ Yara
+NO ACTION
+Interfaces will consume canonical Social Lola contracts when a user-facing Social surface needs them; Yara remains the implementation owner.
+### eCompanion Integrations / ↔ Cleo
+NO ACTION
+Provider transport authority is unchanged and is not routed to Yara.
+### eCompanion Lola / ✦ Lola
+NO ACTION
+Lola product/intelligence authority is unchanged.
+Compatibility:
+BACKWARD COMPATIBLE
+Rollout dependency:
+NONE
+Production state:
+REPORTING/DOCTRINE ONLY; no Mobile product deployment required.
+Do not:
+- Do not absorb Social Lola implementation into Interfaces.
+- Do not route provider transport to Yara.
+- Do not duplicate Social state in the browser.
+- Do not ask the owner to coordinate Iris/Yara/Cleo dependencies.
+Evidence:
+- Mobile `AGENTS.md` updated with explicit Social Lola/Yara/Cleo boundaries.
+- This `HEADQUARTERS_REPORT.md` now carries the same routing.
+
 ### CHANGE: Mobile multimodal companion turns
 Changed by:
 eCompanion Interfaces / ◐ Iris
@@ -121,8 +181,6 @@ Why:
 The Runtime multimodal validator's 20/25 MiB semantic limits cannot currently traverse the default Body HTTP reader.
 Affected projects:
 - eCompanion Runtime / ◉ Maeve
-Canonical contract / behavior now:
-Until Runtime reconciles the Body transport, Mobile uses the smaller real transport-safe ceiling and fails closed before upload.
 Expected action by other projects:
 ### Runtime / ◉ Maeve
 REQUIRED
@@ -213,24 +271,13 @@ Browser voice input/output and playback barge-in are deployed.
 
 ## PROVENANCE
 Canonical source: GitHub `ecompanionhub/eCompanion-Mobile` → `main`.
-
-Functional release chain:
-- `88eca1d…` attachment preparation
-- `355bfca…` voice interruption
-- `b5f21d4…` multimodal composer
-- `875f638…` canonical multimodal turn + in-flight draft behavior
-- `1ae49f0…` installed shell update
-- `d23f734…` first full multimodal release gate
-- `08a24f4…` actual transport fail-closed mitigation
-- `3896cf3…` wire-limit regression
-- `d6a5917…` semantic-vs-wire distinction, current functional release
-
-Production: Render `srv-daat0mu7bikc73c9fiv0` → `dep-dag4qq3ncjis738ng57g` LIVE on `d6a5917…`.
+Functional product release/deploy remain `d6a5917…` / `dep-dag4qq3ncjis738ng57g` LIVE.
+Standing doctrine commit recognizing Yara: `fa36ba07f979a03ab32501d326b46205da45fa07`.
 
 ## EVIDENCE
 - `verify-mobile` run `34260544342`: web SUCCESS + native-core SUCCESS.
-- Render deploy `dep-dag4qq3ncjis738ng57g`: LIVE on exact tested release.
+- Render deploy `dep-dag4qq3ncjis738ng57g`: LIVE on exact tested functional release.
 - Runtime `src/http-body.ts`: default JSON limit 1,000,000 bytes.
 - Mobile multimodal/wire-limit + voice tests: PASS.
-- External public hostname probe: DNS-unresolved in execution environment; not counted as target proof or product failure.
+- Mobile `AGENTS.md`: explicit Yara/Social Lola vs Cleo/provider transport authority split.
 - No secrets recorded.
