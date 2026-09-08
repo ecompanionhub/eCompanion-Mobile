@@ -6,11 +6,10 @@ Engineer: ◐ Iris 👩🏽‍🎨
 Project: eCompanion Interfaces — Mobile / Body
 Mode: WORK
 Canonical source: `ecompanionhub/eCompanion-Mobile` → `main`
-Current source head: `a150b8bd1a90a39f033f9c7c8709bd7a685ea061` (`AGENTS.md` standing WORK contract).
 Current production / physical target: Render static site `ecompanion-mobile` (`srv-daat0mu7bikc73c9fiv0`); no new physical iPhone install is claimed.
-Current release/version where relevant: current Render deploy `dep-dag3vl15efls73fi9kig` LIVE on source head `a150b8bd1a90a39f033f9c7c8709bd7a685ea061`. Functional published `web/` product bytes are unchanged from tested product head `91996bc73eaaa8bf112d8a41e8a63830bd207714`.
+Current release/version where relevant: tested functional product head `91996bc73eaaa8bf112d8a41e8a63830bd207714`. The most recently checked Render deployment after adding the standing work contract was `dep-dag3vl15efls73fi9kig` on `a150b8bd1a90a39f033f9c7c8709bd7a685ea061`, status LIVE.
 
-GitHub compare `91996bc… → a150b8b…` changes only `HEADQUARTERS_REPORT.md` and `AGENTS.md`; no `web/` or native product bytes changed.
+Later report-only commits can auto-deploy because Mobile auto-deploy is enabled. They are not new functional releases unless `web/` or native product bytes change. GitHub compare `91996bc… → a150b8b…` changed only `HEADQUARTERS_REPORT.md` and `AGENTS.md`.
 
 ## PRODUCT RESULT
 The owner-facing Mobile product is a daily companion client instead of a technical Body/Runtime control surface.
@@ -25,7 +24,7 @@ The owner can:
 - forget the local credential without the UI pretending that local deletion equals server-side revocation;
 - install the PWA under the owner-facing identity `eCompanion` / `Lola` rather than `eCompanion Body` / `eBody`.
 
-The doctrine/`AGENTS.md` update in the current source head is standing work-environment metadata only; it adds no new owner-facing capability.
+The doctrine/`AGENTS.md` change is standing work-environment metadata only; it adds no new owner-facing capability.
 
 ## COMPLETED
 - Companion-first Mobile conversation home.
@@ -48,8 +47,8 @@ The doctrine/`AGENTS.md` update in the current source head is standing work-envi
 - TESTED — native BodyAgentCore build PASS, iOS Simulator BodyAgentCore build PASS, ECompanionBodyApp iOS Simulator build PASS, BodyAgentCore tests PASS.
 
 ### DEPLOYED
-- DEPLOYED — current Render deploy `dep-dag3vl15efls73fi9kig` is LIVE on source head `a150b8bd1a90a39f033f9c7c8709bd7a685ea061`.
-- DEPLOYED functional product bytes are the already-tested `91996bc…` `web/` tree; compare confirms later commits changed only report/standing instructions.
+- DEPLOYED — the tested functional `web/` product bytes are in the live Mobile deployment lineage. The most recently checked docs-only deployment was `dep-dag3vl15efls73fi9kig` on `a150b8bd…`, LIVE.
+- Later report-only auto-deploys do not upgrade proof or represent new functional product bytes.
 
 ### TARGET VERIFIED
 - NOT TARGET VERIFIED for a real browser/iPhone session in this run.
@@ -66,9 +65,9 @@ Web production:
 - Source: GitHub `ecompanionhub/eCompanion-Mobile` → `main`
 - Publish path: `web`
 - Auto deploy: yes
-- Current deploy: `dep-dag3vl15efls73fi9kig` → LIVE
-- Current source head deployed: `a150b8bd1a90a39f033f9c7c8709bd7a685ea061`
+- Last explicitly checked deploy: `dep-dag3vl15efls73fi9kig` → LIVE
 - Last tested functional product head: `91996bc73eaaa8bf112d8a41e8a63830bd207714`
+- Standing-rule commit checked in that deployment lineage: `a150b8bd1a90a39f033f9c7c8709bd7a685ea061`
 
 Native source remains in the same repository. Native Simulator build/tests are green on `91996bc…`; no physical iPhone install is claimed.
 
@@ -119,7 +118,7 @@ Do not reintroduce browser-owned companion identity, browser-only policy/action 
 Evidence:
 - tested product head `91996bc73eaaa8bf112d8a41e8a63830bd207714`
 - verify run `34252191240` PASS
-- current Render deploy `dep-dag3vl15efls73fi9kig` LIVE
+- checked Render deploy `dep-dag3vl15efls73fi9kig` LIVE
 
 ## CROSS-PROJECT BLOCKERS
 ### CROSS-PROJECT BLOCKER: canonical action progress in Mobile
@@ -157,15 +156,18 @@ Canonical Mobile source: GitHub `ecompanionhub/eCompanion-Mobile` → `main`.
 
 Production: Render `srv-daat0mu7bikc73c9fiv0`, publish path `web`, auto deploy enabled.
 
-Current source/deploy head `a150b8bd…` differs from tested product head `91996bc…` only by `HEADQUARTERS_REPORT.md` and root `AGENTS.md`; compare proves no product-byte drift.
+Tested functional product head: `91996bc73eaaa8bf112d8a41e8a63830bd207714`.
 
-Root `AGENTS.md` now contains standing Mobile WORK rules: authority boundaries, canonical deploy target, test commands, security/no-fallback rules, peer-report delta rules, proof semantics and reporting requirements.
+Standing-rule commit: `a150b8bd1a90a39f033f9c7c8709bd7a685ea061`.
+
+GitHub compare `91996bc… → a150b8b…` proves the intervening changes are only `HEADQUARTERS_REPORT.md` and root `AGENTS.md`; no `web/` or native product-byte drift.
+
+Root `AGENTS.md` contains standing Mobile WORK rules: authority boundaries, canonical deploy target, test commands, security/no-fallback rules, peer-report delta rules, proof semantics and reporting requirements.
 
 ## EVIDENCE
 - tested functional product head: `91996bc73eaaa8bf112d8a41e8a63830bd207714`
 - verify-mobile run `34252191240`: web SUCCESS + native-core SUCCESS
-- current source head: `a150b8bd1a90a39f033f9c7c8709bd7a685ea061`
+- standing-rule commit: `a150b8bd1a90a39f033f9c7c8709bd7a685ea061`
 - compare `91996bc… → a150b8b…`: only `HEADQUARTERS_REPORT.md` + `AGENTS.md`
-- Render deploy: `dep-dag3vl15efls73fi9kig` → LIVE
-- root `AGENTS.md` standing contract added at `a150b8bd1a90a39f033f9c7c8709bd7a685ea061`
+- last checked Render deploy: `dep-dag3vl15efls73fi9kig` → LIVE
 - no secrets recorded
