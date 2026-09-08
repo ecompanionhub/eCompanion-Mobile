@@ -1,3 +1,4 @@
+import { prepareAttachments, validateAttachmentFiles } from './attachments.js';
 import { createVoiceAdapter } from './voice.js';
 
 const $ = (id) => document.getElementById(id);
@@ -12,6 +13,9 @@ const chatTitle = $('chatTitle');
 const chatMeta = $('chatMeta');
 const chatInput = $('chatInput');
 const sendBtn = $('sendBtn');
+const attachBtn = $('attachBtn');
+const attachmentInput = $('attachmentInput');
+const attachmentTray = $('attachmentTray');
 const voiceBtn = $('voiceBtn');
 const speakToggle = $('speakToggle');
 const voiceState = $('voiceState');
@@ -33,6 +37,9 @@ const STORAGE = Object.freeze({
 const savedDeviceId = localStorage.getItem(STORAGE.deviceId);
 let deviceId = savedDeviceId || `ebody:${crypto.randomUUID()}`;
 if (!savedDeviceId) localStorage.setItem(STORAGE.deviceId, deviceId);
+
+let selectedFiles = [];
+let turnInFlight = false;
 
 function normalizedHttpUrl(value) {
   const raw = String(value ?? '').trim().replace(/\/$/, '');
@@ -71,18 +78,36 @@ if (pendingRelinkCode) {
   $('pairBtn').textContent = 'Reconnect';
 }
 
+function resizeComposer() {
+  chatInput.style.height = 'auto';
+  chatInput.style.height = `${Math.min(150, chatInput.scrollHeight)}px`;
+}
+
+function appendVoiceDraft(transcript) {
+  const current = chatInput.value.trim();
+  chatInput.value = current ? `${current}\n${transcript}` : transcript;
+  resizeComposer();
+  chatInput.focus();
+}
+
 const voiceAdapter = createVoiceAdapter({
   language: navigator.language || 'en-US',
   onTranscript: async (transcript) => {
+    if (turnInFlight) {
+      appendVoiceDraft(transcript);
+      showChatNotice('I heard you. Your next message is ready to send when this turn finishes.');
+      return;
+    }
     chatInput.value = transcript;
+    resizeComposer();
     await run(() => sendChatContent(transcript, { clearInput: true }))
       .catch((error) => renderChatError(error, { preserveMessages: true }));
   },
-  onState: ({ listening, speakReplies, text }) => {
+  onState: ({ listening, speaking, speakReplies, text }) => {
     voiceBtn.textContent = listening ? '■' : '◉';
     voiceBtn.classList.toggle('voice-listening', listening);
     voiceBtn.setAttribute('aria-pressed', listening ? 'true' : 'false');
-    voiceBtn.setAttribute('aria-label', listening ? 'Stop listening' : 'Talk to Lola');
+    voiceBtn.setAttribute('aria-label', listening ? 'Stop listening' : speaking ? 'Interrupt and talk' : 'Talk to Lola');
     speakToggle.textContent = speakReplies ? 'Replies on' : 'Replies off';
     speakToggle.setAttribute('aria-pressed', speakReplies ? 'true' : 'false');
     voiceState.textContent = text;
@@ -109,7 +134,6 @@ function detectCapabilities() {
 }
 
 const capabilities = detectCapabilities();
-voiceBtn.disabled = !capabilities.speech_recognition;
 speakToggle.disabled = !capabilities.speech_synthesis;
 if (!capabilities.speech_recognition && capabilities.speech_synthesis) {
   voiceState.textContent = 'Voice input is unavailable here · spoken replies are available';
@@ -168,6 +192,9 @@ function showChatNotice(text = '') {
 function renderPairingSurface() {
   const paired = Boolean(currentToken());
   setupSection.hidden = paired && !pendingRelinkCode;
+  sendBtn.disabled = !paired || turnInFlight;
+  attachBtn.disabled = !paired || turnInFlight;
+  voiceBtn.disabled = !paired || !capabilities.speech_recognition;
   if (paired) {
     mobileHero.textContent = `${chatTitle.textContent || 'Lola'}, with you.`;
     mobileIntro.textContent = 'Continue the conversation from your phone. Device access stays scoped to this device.';
@@ -298,6 +325,62 @@ async function run(action) {
   }
 }
 
+function formatBytes(value) {
+  const bytes = Number(value || 0);
+  if (bytes < 1024) return `${bytes} B`;
+  if (bytes < 1024 * 1024) return `${(bytes / 1024).toFixed(1)} KB`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+}
+
+function fileTypeLabel(value) {
+  const kind = String(value || 'document');
+  return kind === 'image' ? 'Image' : kind === 'audio' ? 'Audio' : kind === 'video' ? 'Video' : 'File';
+}
+
+function renderSelectedAttachments() {
+  attachmentTray.replaceChildren();
+  attachmentTray.hidden = selectedFiles.length === 0;
+  for (const [index, file] of selectedFiles.entries()) {
+    const chip = document.createElement('div');
+    chip.className = 'attachment-chip';
+    const label = document.createElement('span');
+    label.textContent = `${file.name || 'Attachment'} · ${formatBytes(file.size)}`;
+    const remove = document.createElement('button');
+    remove.className = 'attachment-remove';
+    remove.type = 'button';
+    remove.setAttribute('aria-label', `Remove ${file.name || 'attachment'}`);
+    remove.textContent = '×';
+    remove.addEventListener('click', () => {
+      selectedFiles = selectedFiles.filter((_, candidateIndex) => candidateIndex !== index);
+      renderSelectedAttachments();
+    });
+    chip.append(label, remove);
+    attachmentTray.append(chip);
+  }
+}
+
+function persistedAttachments(item) {
+  const value = item?.metadata?.attachments;
+  if (!Array.isArray(value)) return [];
+  return value.filter(entry => entry && typeof entry === 'object' && !Array.isArray(entry));
+}
+
+function appendAttachmentBadges(container, items) {
+  if (!items.length) return;
+  const wrap = document.createElement('div');
+  wrap.className = 'message-attachments';
+  for (const item of items) {
+    const badge = document.createElement('span');
+    badge.className = 'message-attachment';
+    const kind = fileTypeLabel(item.kind);
+    const filename = String(item.filename || kind);
+    const size = Number(item.byte_size ?? item.byteSize ?? 0);
+    badge.textContent = size ? `${kind} · ${filename} · ${formatBytes(size)}` : `${kind} · ${filename}`;
+    wrap.append(badge);
+  }
+  container.append(wrap);
+}
+
 function renderMessages(items) {
   messagesEl.replaceChildren();
   if (!items.length) {
@@ -311,23 +394,34 @@ function renderMessages(items) {
     if (item.role !== 'user' && item.role !== 'assistant' && item.role !== 'system') continue;
     const bubble = document.createElement('div');
     bubble.className = `bubble ${item.role}`;
-    bubble.textContent = String(item.content || '');
+    const text = String(item.content || '');
+    if (text) {
+      const content = document.createElement('span');
+      content.textContent = text;
+      bubble.append(content);
+    }
+    appendAttachmentBadges(bubble, persistedAttachments(item));
     messagesEl.append(bubble);
   }
   messagesEl.scrollTop = messagesEl.scrollHeight;
 }
 
-function renderPendingTurn(content) {
+function renderPendingTurn(content, attachments = []) {
   showChatNotice('');
   const empty = messagesEl.querySelector('.empty-chat');
   if (empty) empty.remove();
   const user = document.createElement('div');
   user.className = 'bubble user';
-  user.textContent = content;
+  if (content) {
+    const text = document.createElement('span');
+    text.textContent = content;
+    user.append(text);
+  }
+  appendAttachmentBadges(user, attachments);
   const pending = document.createElement('div');
   pending.className = 'bubble system';
   pending.dataset.pending = 'true';
-  pending.textContent = 'Lola is responding…';
+  pending.textContent = attachments.length ? 'Lola is looking at what you sent…' : 'Lola is responding…';
   messagesEl.append(user, pending);
   messagesEl.scrollTop = messagesEl.scrollHeight;
 }
@@ -408,19 +502,33 @@ async function refreshSelf() {
 }
 
 async function sendChatContent(value, { clearInput = false } = {}) {
-  const content = String(value || '').trim();
-  if (!content) throw new Error('Write a message first.');
+  if (turnInFlight) throw new Error('Lola is still answering this turn. Your next message can stay in the composer.');
+  const text = String(value || '').trim();
+  const files = [...selectedFiles];
+  if (!text && files.length === 0) throw new Error('Write a message or attach a file first.');
 
-  sendBtn.disabled = true;
-  chatInput.disabled = true;
-  voiceBtn.disabled = true;
-  renderPendingTurn(content);
+  turnInFlight = true;
+  renderPairingSurface();
+  const originalComposerValue = chatInput.value;
+
   try {
+    if (files.length) showChatNotice(files.length === 1 ? 'Preparing your file…' : 'Preparing your files…');
+    const attachments = files.length ? await prepareAttachments(files) : [];
+    const turnContent = attachments.length ? { text, attachments } : text;
+    renderPendingTurn(text, attachments);
+
     const result = await bodyRequest('/api/v1/body/chat/turn', {
       method: 'POST',
-      body: { content }
+      body: { content: turnContent }
     });
-    if (clearInput || chatInput.value.trim() === content) chatInput.value = '';
+
+    if (clearInput && chatInput.value === originalComposerValue) {
+      chatInput.value = '';
+      resizeComposer();
+    }
+    selectedFiles = [];
+    attachmentInput.value = '';
+    renderSelectedAttachments();
     setStatus(true, 'Connected');
     await loadChat({ preserveOnError: true });
     setPresence('available').catch(() => null);
@@ -436,9 +544,8 @@ async function sendChatContent(value, { clearInput = false } = {}) {
     });
     throw error;
   } finally {
-    sendBtn.disabled = false;
-    chatInput.disabled = false;
-    voiceBtn.disabled = !capabilities.speech_recognition;
+    turnInFlight = false;
+    renderPairingSurface();
     chatInput.focus();
   }
 }
@@ -523,15 +630,39 @@ $('availableBtn').addEventListener('click', () => run(() => setPresence('availab
 $('offlineBtn').addEventListener('click', () => run(() => setPresence('offline')).catch(() => {}));
 $('refreshChatBtn').addEventListener('click', () => run(() => loadChat({ preserveOnError: true })).catch(() => {}));
 
+attachBtn.addEventListener('click', () => {
+  if (!currentToken()) {
+    renderChatError(new Error('Connect this phone before sharing files.'));
+    return;
+  }
+  attachmentInput.click();
+});
+
+attachmentInput.addEventListener('change', () => {
+  try {
+    selectedFiles = validateAttachmentFiles([...selectedFiles, ...Array.from(attachmentInput.files || [])]);
+    renderSelectedAttachments();
+    showChatNotice('');
+  } catch (error) {
+    showChatNotice(error.message);
+  } finally {
+    attachmentInput.value = '';
+  }
+});
+
 $('chatForm').addEventListener('submit', (event) => {
   event.preventDefault();
+  if (turnInFlight) {
+    showChatNotice('Lola is still answering. Your next message can stay here and will not be sent until you press Send after this turn finishes.');
+    return;
+  }
   run(() => sendChatContent(chatInput.value, { clearInput: true }))
     .catch((error) => renderChatError(error, { preserveMessages: true }));
 });
 
 chatInput.addEventListener('input', () => {
-  chatInput.style.height = 'auto';
-  chatInput.style.height = `${Math.min(150, chatInput.scrollHeight)}px`;
+  if (voiceAdapter.isSpeaking()) voiceAdapter.stopSpeaking();
+  resizeComposer();
 });
 
 chatInput.addEventListener('keydown', (event) => {
@@ -566,6 +697,9 @@ $('forgetBtn').addEventListener('click', () => {
   voiceAdapter.stopListening();
   voiceAdapter.stopSpeaking();
   clearLocalCredential();
+  selectedFiles = [];
+  attachmentInput.value = '';
+  renderSelectedAttachments();
   setStatus(false, 'Forgotten on this phone');
   renderBodyIdentity();
   renderPairingSurface();
@@ -581,6 +715,7 @@ document.addEventListener('visibilitychange', () => {
 });
 
 renderCapabilities();
+renderSelectedAttachments();
 renderBodyIdentity();
 renderPairingSurface();
 if (currentToken()) {
