@@ -1,4 +1,4 @@
-# eCompanion Mobile / Interfaces — AGENTS.md
+﻿# eCompanion Mobile / Interfaces — AGENTS.md
 
 Permanent standing rules for this repository. Current status, evidence and cross-project deltas belong in `HEADQUARTERS_REPORT.md`.
 
@@ -132,9 +132,13 @@ At the start of relevant work, read this repo's `HEADQUARTERS_REPORT.md` and onl
 Do not audit all repos by default.
 
 ## Build and verification
-Current repository verification is defined by `.github/workflows/verify.yml`.
+Ordinary engineering verification is a pre-STABLE/internal responsibility. .github/workflows/verify.yml is manual remote release qualification only and must not run routine engineering verification automatically from push, pull request, branch update, schedule, or another automatic GitHub event without an exact current Vera / Production exception.
+
+Run the applicable verification before every STABLE commit. The local workflow-policy consumer is python tools/verify_workflow_policy.py; it rejects automatic GitHub workflows with routine test/build/debug/verification/packaging semantics unless an exact canonical Production exception is mirrored for that workflow and trigger. This repository may not mint its own exception authority.
 
 Relevant checks include:
+- python tools/verify_workflow_policy.py
+- python tools/mobile_boundary_static_gate.py
 - `node --check web/app.js`
 - `node --check web/attachments.js`
 - `node --check web/voice.js`
