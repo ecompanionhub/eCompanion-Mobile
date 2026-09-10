@@ -1,5 +1,5 @@
-const CACHE = 'ecompanion-mobile-v5';
-const SHELL = ['./', './index.html', './app.js', './attachments.js', './voice.js', './manifest.webmanifest'];
+const CACHE = 'ecompanion-mobile-v6';
+const SHELL = ['./', './index.html', './app.js', './attachments.js', './voice.js', './manifest.webmanifest', './lola-presence.webp'];
 
 self.addEventListener('install', (event) => {
   event.waitUntil(caches.open(CACHE).then((cache) => cache.addAll(SHELL)));

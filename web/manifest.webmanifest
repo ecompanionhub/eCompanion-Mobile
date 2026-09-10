@@ -1,11 +1,11 @@
 {
-  "name": "eCompanion",
+  "name": "Lola · eCompanion",
   "short_name": "Lola",
-  "description": "Your private eCompanion on this phone.",
+  "description": "Lola, your private eCompanion.",
   "start_url": "./",
   "scope": "./",
   "display": "standalone",
-  "background_color": "#0b0b0f",
-  "theme_color": "#0b0b0f",
+  "background_color": "#090a0f",
+  "theme_color": "#090a0f",
   "orientation": "portrait-primary"
 }
