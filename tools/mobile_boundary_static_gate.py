@@ -2,16 +2,17 @@ import json
 import plistlib
 from pathlib import Path
 
-boundaries = json.loads(Path('ECOMPANION_MOBILE_BOUNDARIES.json').read_text())
-capabilities = json.loads(Path('BODY_AGENT_CAPABILITIES.json').read_text())
-manifest = json.loads(Path('web/manifest.webmanifest').read_text())
-html = Path('web/index.html').read_text()
-js = Path('web/app.js').read_text()
-attachments = Path('web/attachments.js').read_text()
-voice = Path('web/voice.js').read_text()
-sw = Path('web/sw.js').read_text()
-runtime_client = Path('native/BodyAgentCore/Sources/BodyAgentCore/RuntimeActionClient.swift').read_text()
-json_value = Path('native/BodyAgentCore/Sources/BodyAgentCore/JSONValue.swift').read_text()
+boundaries = json.loads(Path('ECOMPANION_MOBILE_BOUNDARIES.json').read_text(encoding='utf-8'))
+capabilities = json.loads(Path('BODY_AGENT_CAPABILITIES.json').read_text(encoding='utf-8'))
+manifest = json.loads(Path('web/manifest.webmanifest').read_text(encoding='utf-8'))
+html = Path('web/index.html').read_text(encoding='utf-8')
+js = Path('web/app.js').read_text(encoding='utf-8')
+attachments = Path('web/attachments.js').read_text(encoding='utf-8')
+voice = Path('web/voice.js').read_text(encoding='utf-8')
+call = Path('web/call.js').read_text(encoding='utf-8')
+sw = Path('web/sw.js').read_text(encoding='utf-8')
+runtime_client = Path('native/BodyAgentCore/Sources/BodyAgentCore/RuntimeActionClient.swift').read_text(encoding='utf-8')
+json_value = Path('native/BodyAgentCore/Sources/BodyAgentCore/JSONValue.swift').read_text(encoding='utf-8')
 
 required_ids = [
     'pairBtn', 'connectBtn', 'syncDeviceBtn', 'availableBtn',
@@ -20,7 +21,8 @@ required_ids = [
     'capabilities', 'bodyInfo', 'messages', 'chatForm',
     'chatInput', 'sendBtn', 'refreshChatBtn', 'chatTitle', 'chatMeta',
     'chatNotice', 'voiceBtn', 'speakToggle', 'voiceState',
-    'attachBtn', 'attachmentInput', 'attachmentTray'
+    'attachBtn', 'attachmentInput', 'attachmentTray',
+    'callBtn', 'callSurface', 'callVideo', 'callState', 'callTranscript', 'hangupBtn'
 ]
 missing = [value for value in required_ids if f'id="{value}"' not in html]
 assert not missing, f'missing UI ids: {missing}'
@@ -43,7 +45,7 @@ assert '/api/v1/body/actions/claim' not in js
 assert '/api/v1/body-actions' not in js
 assert '/api/companion/operations/actions' not in js
 
-assert '<summary>This phone</summary>' in html
+assert '<summary>Device & system controls</summary>' in html
 assert 'id="runtimeBase" type="hidden"' in html
 assert 'id="syncDeviceBtn" class="secondary" type="button">Save changes</button>' in html
 assert 'body:has(#setupSection:not([hidden])) .advanced{display:none}' in html
@@ -58,11 +60,11 @@ owner_visible_forbidden = [
 visible_found = [value for value in owner_visible_forbidden if value in html]
 assert not visible_found, f'developer controls leaked into owner UX: {visible_found}'
 
-assert manifest['name'] == 'eCompanion'
+assert manifest['name'] == 'Lola · eCompanion'
 assert manifest['short_name'] == 'Lola'
-assert manifest['description'] == 'Your private eCompanion on this phone.'
+assert manifest['description'] == 'Lola, your private eCompanion.'
 assert 'body surface' not in manifest['description'].lower()
-assert "const CACHE = 'ecompanion-mobile-v5';" in sw
+assert "const CACHE = 'ecompanion-mobile-v7';" in sw
 assert "'./attachments.js'" in sw
 assert 'ecompanion-body-v2' not in sw
 
@@ -102,6 +104,22 @@ assert 'Refresh the conversation before sending again to avoid a duplicate messa
 assert "$('syncDeviceBtn').addEventListener('click'" in js
 assert "'/api/v1/body/device'" in js
 
+assert "import { createCallController } from './call.js'" in js
+assert "import Daily from './vendor/daily-esm.js'" in js
+assert '/api/v1/body/voice/policy' in call
+assert '/api/v1/body/voice/sessions' in call
+assert '/renderer' in call
+assert '/audio-chunks' in call
+assert '/events?afterSequence=' in call
+assert '/outputs/' in call
+assert '/interrupt' in call
+assert '/playback-complete' in call
+assert 'conversation.echo' in call
+assert "modality: 'audio'" in call
+assert 'sample_rate: ECHO_RATE' in call
+assert 'getUserMedia' in call
+assert 'speechSynthesis' not in call
+assert 'SpeechRecognition' not in call
 assert "import { createVoiceAdapter } from './voice.js'" in js
 assert 'speech_recognition' in js
 assert 'speech_synthesis' in js
@@ -115,6 +133,8 @@ assert 'webkitSpeechRecognition' in voice
 assert 'SpeechSynthesisUtterance' in voice
 assert 'fetch(' not in voice
 assert "'./voice.js'" in sw
+assert "'./call.js'" in sw
+assert "'./vendor/daily-esm.js'" in sw
 
 # Native BodyAgent keeps executor authority; owner web UI does not claim it.
 assert '/api/v1/body/actions/claim' in runtime_client

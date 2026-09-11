@@ -1,5 +1,7 @@
 import { prepareAttachments, validateAttachmentFiles } from './attachments.js';
 import { createVoiceAdapter } from './voice.js';
+import { createCallController } from './call.js';
+import Daily from './vendor/daily-esm.js';
 
 const $ = (id) => document.getElementById(id);
 
@@ -22,6 +24,12 @@ const voiceState = $('voiceState');
 const setupSection = $('setupSection');
 const mobileHero = $('mobileHero');
 const mobileIntro = $('mobileIntro');
+const callBtn = $('callBtn');
+const callSurface = $('callSurface');
+const callVideo = $('callVideo');
+const callState = $('callState');
+const callTranscript = $('callTranscript');
+const hangupBtn = $('hangupBtn');
 
 const DEFAULT_RUNTIME = 'https://ecompanion-ene7.onrender.com';
 
@@ -195,6 +203,7 @@ function renderPairingSurface() {
   sendBtn.disabled = !paired || turnInFlight;
   attachBtn.disabled = !paired || turnInFlight;
   voiceBtn.disabled = !paired || !capabilities.speech_recognition;
+  callBtn.disabled = !paired || !capabilities.microphone || !capabilities.webrtc;
   if (paired) {
     mobileHero.textContent = `${chatTitle.textContent || 'Lola'}, with you.`;
     mobileIntro.textContent = 'Continue the conversation from your phone. Device access stays scoped to this device.';
@@ -312,6 +321,35 @@ async function bodyRequest(path, { method = 'GET', body } = {}) {
   });
   return parseResponse(response);
 }
+
+function createDailyCallFrame(host) {
+  host.replaceChildren();
+  return Daily.createFrame(host, {
+    showLeaveButton: false,
+    showFullscreenButton: false,
+    showLocalVideo: false,
+    showParticipantsBar: false,
+    iframeStyle: { position: 'absolute', inset: '0', width: '100%', height: '100%', border: '0' }
+  });
+}
+
+let callController = null;
+
+callController = createCallController({
+  request: bodyRequest,
+  dailyFactory: createDailyCallFrame,
+  videoHost: callVideo,
+  onState: ({ phase, detail, active }) => {
+    callState.textContent = detail || phase;
+    callSurface.hidden = !active && phase !== 'ending';
+    document.body.classList.toggle('call-open', active || phase === 'ending');
+    callBtn.setAttribute('aria-pressed', active ? 'true' : 'false');
+  },
+  onTurn: ({ transcript, replyText }) => {
+    callTranscript.textContent = [transcript ? `You: ${transcript}` : '', replyText ? `Lola: ${replyText}` : ''].filter(Boolean).join('
+');
+  }
+});
 
 async function run(action) {
   try {
@@ -626,6 +664,27 @@ async function setPresence(state) {
   return result;
 }
 
+callBtn.addEventListener('click', async () => {
+  if (!currentToken()) {
+    renderChatError(new Error('Connect this phone before calling Lola.'));
+    return;
+  }
+  voiceAdapter.stopListening();
+  voiceAdapter.stopSpeaking();
+  callTranscript.textContent = '';
+  try {
+    await callController.start();
+  } catch (error) {
+    show({ ok: false, error: error.message, details: error.payload || null });
+  }
+});
+
+hangupBtn.addEventListener('click', async () => {
+  await callController.hangup().catch(error => show({ ok: false, error: error.message }));
+  callVideo.replaceChildren();
+  await loadChat({ preserveOnError: true }).catch(() => null);
+});
+
 $('availableBtn').addEventListener('click', () => run(() => setPresence('available')).catch(() => {}));
 $('offlineBtn').addEventListener('click', () => run(() => setPresence('offline')).catch(() => {}));
 $('refreshChatBtn').addEventListener('click', () => run(() => loadChat({ preserveOnError: true })).catch(() => {}));
@@ -693,9 +752,10 @@ speakToggle.addEventListener('click', () => {
   voiceAdapter.setSpeakReplies(enabled);
 });
 
-$('forgetBtn').addEventListener('click', () => {
+$('forgetBtn').addEventListener('click', async () => {
   voiceAdapter.stopListening();
   voiceAdapter.stopSpeaking();
+  if (callController.snapshot().active) await callController.hangup().catch(() => null);
   clearLocalCredential();
   selectedFiles = [];
   attachmentInput.value = '';

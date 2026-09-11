@@ -38,11 +38,11 @@
     "relink_client_device_id_authority": false
   },
   "voice": {
-    "input_adapter": "capability_negotiated",
-    "output_adapter": "capability_negotiated",
+    "input_adapter": "runtime_voice_pcm16_16khz",
+    "output_adapter": "elevenlabs_voice_via_runtime_integrations",
     "paid_provider_required": false,
     "runtime_chat_authority": "unchanged",
-    "transcript_transport": "existing_body_chat_turn",
+    "transcript_transport": "runtime_voice_session_to_canonical_conversation",
     "client_companion_selection": false,
     "native_wake_word_target": true,
     "browser_adapter_role": "fallback"
