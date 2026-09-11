@@ -1,4 +1,4 @@
-const CACHE = 'ecompanion-mobile-v7';
+const CACHE = 'ecompanion-mobile-v8';
 const SHELL = ['./', './index.html', './app.js', './attachments.js', './voice.js', './call.js', './vendor/daily-esm.js', './manifest.webmanifest', './lola-presence.webp'];
 
 self.addEventListener('install', (event) => {

@@ -7,6 +7,7 @@ export function createVoiceAdapter({ language, onTranscript, onState } = {}) {
   let listening = false;
   let speaking = false;
   let speakReplies = true;
+  let discardTranscript = false;
 
   function emit(text) {
     onState?.({ listening, speaking, speakReplies, text });
@@ -28,8 +29,9 @@ export function createVoiceAdapter({ language, onTranscript, onState } = {}) {
     return wasSpeaking;
   }
 
-  function stopListening() {
-    if (!recognition || !listening) return false;
+  function stopListening({ discard = false } = {}) {
+    if (!recognition) return false;
+    discardTranscript = discard;
     recognition.stop();
     return true;
   }
@@ -41,6 +43,7 @@ export function createVoiceAdapter({ language, onTranscript, onState } = {}) {
     if (speaking) stopSpeaking({ emitState: false });
 
     let finalTranscript = '';
+    discardTranscript = false;
     recognition = new Recognition();
     recognition.lang = lang;
     recognition.continuous = false;
@@ -79,8 +82,8 @@ export function createVoiceAdapter({ language, onTranscript, onState } = {}) {
       const transcript = finalTranscript.trim();
       listening = false;
       recognition = null;
-      emit(transcript ? 'Sending voice message…' : 'Voice ready');
-      if (transcript) Promise.resolve(onTranscript?.(transcript)).catch(() => emit('Voice send failed'));
+      emit(transcript && !discardTranscript ? 'Sending voice message…' : 'Voice ready');
+      if (transcript && !discardTranscript) Promise.resolve(onTranscript?.(transcript)).catch(() => emit('Voice send failed'));
     };
 
     recognition.start();

@@ -1,190 +1,78 @@
 # HEADQUARTERS REPORT
 
 ## CURRENT
-Updated: 2026-09-08T21:27+02:00
-Engineer: ◐ Iris 👩🏽‍🎨 + ⌖ Vera 👩🏾‍🔧 Production
-Project: eCompanion Interfaces — Mobile / Body
-Mode: WORK / PRODUCTION FIX
-Canonical source: `ecompanionhub/eCompanion-Mobile` → `main`
-Current production target: Render `ecompanion-mobile` (`srv-daat0mu7bikc73c9fiv0`); physical iPhone install not claimed.
-Current functional release: `246ba6f6866e665bb03cbb41965d903f3ee2ded2`
-Current verified deploy: `dep-dag61erncjis738p4hf0` → LIVE
-
-✧ Yara 🙋🏽‍♀️ remains the Social Lola implementation worker for `ecompanionhub/eCompanion-Lola-Social`; this does not change Mobile authority.
+Updated: 2026-09-11
+Engineer: Iris / Mobile Interfaces implementation worker
+Canonical source: `ecompanionhub/eCompanion-Mobile` -> `main`
+Mode: WORK / SOURCE ONLY; owner explicitly forbids production deployment/install.
+Baseline: `57c7a3a67c414d3d009cafa003a8ff7dfeb77d7b` (one bounded fast-forward from canonical main).
+Candidate: this STABLE commit, `fix: preserve live Lola call continuity and truthful media lifecycle [skip render]`.
 
 ## PRODUCT RESULT
-The temporary 650 KB Mobile attachment ceiling is gone.
+- Preserved the existing app, pairing, attachments, conversation history, multiline drafts, and browser voice functionality.
+- Chat and Call are immediate primary controls. Chat docks the existing live call frame; reopening Call uses the same frame/session. Actual renderer video supplies Lola movement, body language and gaze throughout that switch.
+- Routine call listening/processing/speaking labels are accessible status text rather than prominent overlays. Captions remain available under Conversation. Errors, connection waits and uncertain cleanup remain visible.
+- Renderer speaking cues require actual matching speech events. Microphone cues require actual captured voiced samples; browser voice cues follow the browser speech callbacks. No idle animation, fabricated perception, local intelligence, new Lola identity or second runtime was introduced.
+- A live call remains explicitly open until ended. Chat history and drafts remain accessible; sending a typed turn during an active call is held with an explanation, preserving the draft and avoiding a parallel owner turn while microphone input is active. No automatic send occurs later.
 
-Runtime production now exposes enough Body JSON capacity for the existing canonical multimodal contract, and Mobile once again enforces the intended semantic limits only:
-- maximum 8 attachments;
-- maximum 20 MiB per attachment;
-- maximum 25 MiB combined per turn.
-
-Installed Mobile shells are advanced to `ecompanion-mobile-v5` so the updated attachment behavior replaces the cached v4 module.
-
-This source is TESTED and DEPLOYED. A real authenticated browser/iPhone upload above 650 KB has not been exercised from this execution environment, so larger owner uploads are not claimed TARGET VERIFIED or END-TO-END PROVEN yet.
-
-## VERA PRODUCTION FIX
-
-### Incident — temporary 650 KB client mitigation remained after Runtime transport repair
-Status: FIXED + TESTED + DEPLOYED
-
-Owning dependency fixed first:
-- ⌖ Vera repaired Runtime `/api/v1/body/chat/turn` to use a route-specific 36 MiB JSON ceiling while unrelated Runtime routes keep the generic 1 MB limit.
-- Runtime replacement release `434484a49a42d8092e62c09529546c0e805323f9` / `dep-dag5ue67bikc73d84irg` is LIVE.
-
-Mobile changes:
-- Removed `MAX_WIRE_ATTACHMENT_BYTES = 650_000` and its temporary wire-level rejection from `web/attachments.js`.
-- Preserved canonical semantic limits: 8 files, 20 MiB/item, 25 MiB/turn.
-- Reworked attachment regressions to cover item/count/combined semantic boundaries, including exact accepted limits.
-- Advanced installed shell cache `ecompanion-mobile-v4 → ecompanion-mobile-v5`.
-
-First Mobile candidate exposed a stale CI assertion requiring the old v4 cache name. The product behavior tests themselves passed. Vera updated the static boundary gate to require v5, then allowed the full verification run to complete.
-
-Exact current test proof:
-- GitHub Actions `verify-mobile` run `34268693649`: SUCCESS on `246ba6f6866e665bb03cbb41965d903f3ee2ded2`.
-- Web job: SUCCESS.
-- JavaScript syntax: PASS.
-- Multimodal + voice behavior: PASS.
-- Mobile boundary/static gate: PASS.
-- Native BodyAgentCore build: PASS.
-- BodyAgentCore iOS Simulator build: PASS.
-- ECompanionBodyApp iOS Simulator build: PASS.
-- Native BodyAgentCore tests: PASS.
-
-Deployment proof:
-- Render exact deploy `dep-dag61erncjis738p4hf0` on `246ba6f6866e665bb03cbb41965d903f3ee2ded2`: LIVE.
+## MOBILE DEFECTS FIXED
+- Baseline `web/app.js:349` contained a literal newline in a single-quoted string. Explicit ESM syntax checking reproduced `SyntaxError: Invalid or unexpected token`; the entrypoint now executes in the DOM contract test.
+- Room join previously implied listening without live remote media. Both remote audio/video tracks must now be playable; missing media times out visibly and media loss releases capture.
+- Audio upload previously called playback-complete immediately. Completion now requires matching renderer started/stopped events for the active inference; interrupted, stale, foreign, duplicate and missing output are not successful playback.
+- Barge-in stops buffered renderer speech as well as interrupting the canonical Runtime generation.
+- Failed joins, remote end, microphone loss, call transport errors, late microphone permission and late session/renderer allocations now clean up locally. Pending renderer allocation settles before canonical session deletion. Cleanup uncertainty stays visible.
+- Request deadlines and bounded microphone buffering fail closed rather than accumulating stale speech indefinitely. Old asynchronous work cannot revive an ended call or mutate a replacement session.
+- Call resume is restricted to canonical `chatId=body` sessions; Social/provider sessions are not resumed into this surface.
+- Switching from dictation into Call discards pending dictation rather than accidentally submitting a concurrent chat turn.
+- AudioContext is resumed in the Call gesture for iPhone audio activation. Physical iPhone behavior still needs proof.
+- Service-worker shell cache advanced to v8 for any later authorized release.
 
 ## PROOF STATUS
-### Canonical larger multimodal Mobile limits
-IMPLEMENTED: YES.
-
-TESTED: YES — `verify-mobile` run `34268693649` completed SUCCESS on exact current release.
-
-DEPLOYED: YES — Render deploy `dep-dag61erncjis738p4hf0` is LIVE.
-
-TARGET VERIFIED: PARTIAL — exact web release is live; no authenticated real browser/iPhone >650 KB turn was executed here.
-
-END-TO-END PROVEN: NO for >650 KB owner upload until a real authenticated Body conversation turn carrying such an attachment completes and is visible in persisted conversation history.
-
-### Existing multimodal/voice client behavior
-IMPLEMENTED: YES.
-TESTED: YES on current release.
-DEPLOYED: YES.
-TARGET VERIFIED: no new real authenticated owner-session proof in this run.
-END-TO-END PROVEN: no for persistent autonomous Lola task journey.
-
-## COMPLETED
-- Restored Mobile to Runtime's canonical 8 / 20 MiB / 25 MiB attachment semantics.
-- Removed the obsolete 650 KB transport workaround after Runtime fixed the owning wire contract.
-- Updated multimodal regressions to the real current contract.
-- Refreshed installed PWA shell to v5.
-- Fixed the stale cache-version CI assertion exposed by the first release candidate.
-- Completed the strongest available full Mobile verification across web and native simulator paths.
-- Deployed the exact tested current release.
-
-Existing deployed capabilities remain:
-- text-only, file-only and text + files conversation turns;
-- typed image/audio/video/document preparation with SHA-256 and canonical Base64;
-- attachment selection/removal and persisted descriptor presentation;
-- owner-interruptible browser voice playback;
-- no unsafe concurrent owner turn when speech arrives during an in-flight turn.
-
-## PRODUCTION / PHYSICAL STATE
-- Mobile web: Render `srv-daat0mu7bikc73c9fiv0`, publish path `web`, auto-deploy enabled.
-- Functional release: `246ba6f6866e665bb03cbb41965d903f3ee2ded2`.
-- Deploy: `dep-dag61erncjis738p4hf0` → LIVE.
-- GitHub Actions: `34268693649` → SUCCESS.
-- Installed shell cache: `ecompanion-mobile-v5`.
-- Physical iPhone: NOT TARGET VERIFIED in this run.
-- Physical NODE-01: no new Mobile proof; Mobile does not infer device availability from stale evidence.
-
-## BLOCKERS
-- Real authenticated >650 KB browser/iPhone Body upload is not yet TARGET VERIFIED.
-- Mobile still lacks a device/owner-safe canonical Runtime Task progress/control feed for working presence and pause/cancel/resume/supersede UI.
-- Current conversation attachment path persists descriptors, not durable owner-resolvable task artifact binaries.
-- Provider-grade low-latency duplex voice is not yet proven available to Mobile.
-- Physical native iPhone install remains unverified.
-
-The old Runtime Body 1 MB wire mismatch is RESOLVED and is no longer a cross-project blocker.
-
-## NEXT EXECUTABLE WORK
-- Target-verify one real authenticated Mobile attachment above 650 KB through `POST /api/v1/body/chat/turn` and confirm persisted attachment history. Do not fake this without a real paired owner/device session.
-- Consume canonical Task progress/control only when Runtime exposes a browser/device-safe owner contract; do not use executor/private-service APIs as fake activity state.
-- Integrate durable artifact references and realtime duplex voice when their owning contracts are production-ready.
-
-For Social Lola UI dependencies, route Social implementation to ✧ Yara and provider transport to ↔ Cleo; Mobile remains presentation/client authority.
+IMPLEMENTED: YES for the source changes above.
+TESTED: YES, local Windows / Node v24.19.0 / Python 3.12.10.
+- `node --test test/*.test.mjs`: 25 passed, 0 failed.
+- Includes explicit ESM syntax checks for app/call/voice/attachments/sw; actual app entrypoint with controlled DOM/service dependencies; Chat/Call frame and draft continuity; canonical audio, interruption, media loss, cleanup and cancellation regressions; existing attachments/voice behavior.
+- `python tools/verify_workflow_policy.py`: PASS (manual workflow only; no automatic exceptions).
+- `python tools/mobile_boundary_static_gate.py`: PASS.
+- `git diff --check`: PASS.
+- Manual remote qualification now includes call syntax and all web behavior tests. No remote workflow was dispatched.
+DEPLOYED: NO deployment requested or performed in this work. Commit carries `[skip render]` to suppress the repository's Render auto-deploy.
+TARGET VERIFIED: NO new real browser/iPhone/call target proof. Browser runtime returned no available browser; discovery returned an empty list. DOM fixtures are not visual browser proof.
+END-TO-END PROVEN: NO authenticated microphone -> Runtime -> canonical Lola -> synthesized audio -> renderer playback call was available in this execution environment.
+Native: untouched. Swift/Xcode/iOS Simulator unavailable on this Windows host; no new native build or physical install is claimed.
 
 ## CROSS-PROJECT CHANGES
+### CHANGE: truthful Mobile media lifecycle and continuous call presentation
+Changed by: Iris / Interfaces.
+Proof status: IMPLEMENTED + TESTED, source only.
+Canonical behavior now: Mobile consumes the existing Body voice API and echo-only scoped renderer; provider playback events control presentation and playback acknowledgment. Runtime remains conversation/session authority, Integrations remains renderer/provider authority, Lola remains intelligence authority.
+Affected projects and expected action:
+- Runtime / Maeve: OPTIONAL - during authorized call qualification, verify resumed Body generation and playback acknowledgments against canonical session history.
+- Integrations / Cleo: OPTIONAL - during authorized qualification, verify actual echo renderer media, correlated `inference_id` speech events and interruption. No transport/account/gateway change requested.
+- Private/shared Lola / Lola: NO ACTION - no intelligence/identity/provider selection change.
+- Social Lola / Yara: NO ACTION - no Social source or implementation change; its sessions are excluded from Body call resume.
+Compatibility: BACKWARD COMPATIBLE; no backend schema or credential scope changes. Mobile now requires the existing canonical `echo: true` renderer declaration and refuses unsupported/failing media.
+Rollout dependency: owner authorization for a later production release; real paired phone and canonical voice/renderer availability for target proof.
+Do not: restore upload-as-playback success, animate fake gaze/listening, replay uncertain audio writes, resume Social calls into Body, add browser-owned intelligence or move provider authority into Mobile.
+Evidence: `test/mobile-app.test.mjs`, `test/mobile-call.test.mjs`, `test/mobile-voice.test.mjs`; canonical Runtime `3058dcb5b8efd2fe97379cf8b1b507786224676c`, `src/body-voice-api.ts`, `src/voice.ts`, `src/store/voice-postgres.ts`.
 
-### CHANGE: Mobile multimodal transport workaround retired
-Changed by:
-⌖ Vera Production across eCompanion Runtime + eCompanion Mobile
+## CROSS-PROJECT BLOCKER
+Blocked proof: real authenticated call, physical iPhone audio/media behavior and renderer speech-event correlation.
+Owning dependencies: paired owner device/session; Runtime Body voice and Integrations scoped echo renderer. No bypass or owner-managed URL/credential flow introduced.
+Implementation can continue independently: bounded requested source work is complete; remaining proof requires the actual target environment and later authorized release.
+Always-on idle/perception/gaze intelligence is not exposed by this echo-media contract and has not been invented in Mobile.
 
-Status:
-DEPLOYED
+## ECONOMIC / MANAGEMENT TRUTH
+Provider/model choice and pricing: unchanged by Mobile. Measured cost impact: UNKNOWN. Docking deliberately keeps the same owner-started call alive until End; it does not start another renderer or call. No claim of reduced provider spend.
+No Quinn product/cost decision was required for this owner-directed source-only work.
 
-Change type:
-CROSS-SERVICE PRODUCTION FIX + UI BEHAVIOR + TEST
+## HISTORICAL PRODUCTION EVIDENCE (NOT REVERIFIED THIS RUN)
+Previous report recorded Mobile `246ba6f6866e665bb03cbb41965d903f3ee2ded2` / `dep-dag61erncjis738p4hf0` LIVE and attachment limits restored to 8 items, 20 MiB/item, 25 MiB/turn. That is historical evidence, not a claim about current production main.
+Existing unresolved proof/dependencies: authenticated >650 KB attachment upload; durable owner-resolvable artifact binaries; device-safe Task progress/control feed; physical native iPhone installation.
 
-What changed:
-Runtime's Body route now carries the existing canonical multimodal attachment contract, and Mobile no longer imposes the temporary 650 KB wire workaround.
-
-Affected projects:
-- eCompanion Runtime / ◉ Maeve
-- eCompanion Mobile / ◐ Iris
-
-Canonical behavior:
-- Runtime semantic attachment authority remains 8 attachments, 20 MiB/item, 25 MiB combined.
-- Body chat has enough route-specific JSON capacity for canonical Base64 payloads.
-- Mobile enforces the semantic limits instead of an obsolete lower transport workaround.
-
-Compatibility:
-BACKWARD COMPATIBLE for existing smaller uploads; larger uploads are newly unblocked at source/deployment level.
-
-Do not:
-- Do not globally raise unrelated Runtime JSON routes.
-- Do not increase semantic attachment limits as part of this repair.
-- Do not claim larger owner uploads E2E until a real authenticated upload is observed.
-
-Evidence:
-- Runtime current product-code commit `434484a49a42d8092e62c09529546c0e805323f9` / deploy `dep-dag5ue67bikc73d84irg` LIVE.
-- Mobile changes `6cea85372cf708c2ff261f2858d08bf8a98d6a56`, `e6d98b49be7faaab158425eebcd0273a8c12e12f`, `76c0c5d3681201683e7bc8045e78a8416e011041`.
-- CI gate repair/current release `246ba6f6866e665bb03cbb41965d903f3ee2ded2`.
-- `verify-mobile` run `34268693649` SUCCESS.
-- Render deploy `dep-dag61erncjis738p4hf0` LIVE.
-
-## CROSS-PROJECT BLOCKERS
-
-### CROSS-PROJECT BLOCKER: live task progress and owner interruption
-Owning dependency: eCompanion Runtime / ◉ Maeve
-Required: device/owner-safe task state + realtime event/control contract suitable for Mobile, not companion-service or executor authority.
-Current status: Runtime Task v1 is deployed for Private companion consumption; Mobile-safe owner consumption remains not proven.
-
-### CROSS-PROJECT BLOCKER: durable task artifacts
-Owning dependency: eCompanion Runtime / ◉ Maeve plus producing authority.
-Required: owner/device-safe artifact/media reference contract.
-Current status: not yet proven on Body client contract.
-
-### CROSS-PROJECT BLOCKER: realtime duplex voice
-Owning dependency: eCompanion Runtime / ◉ Maeve + eCompanion Integrations / ↔ Cleo where provider transport is involved.
-Required: canonical realtime streaming/session lifecycle with interruption/reconnect/failure semantics.
-Current status: browser speech/TTS remains deployed; provider-grade client path not proven.
-
-## PROVENANCE
-Canonical source: GitHub `ecompanionhub/eCompanion-Mobile` → `main`.
-Canonical current product release: `246ba6f6866e665bb03cbb41965d903f3ee2ded2`.
-Canonical web production: Render `srv-daat0mu7bikc73c9fiv0`, deploy `dep-dag61erncjis738p4hf0` LIVE.
-
-Physical iPhone proof is separate from source/CI/Render proof.
-
-## EVIDENCE
-- Runtime Body transport dependency repaired and current Runtime release LIVE.
-- `6cea85372cf708c2ff261f2858d08bf8a98d6a56` — remove obsolete 650 KB Mobile wire cap.
-- `e6d98b49be7faaab158425eebcd0273a8c12e12f` — canonical semantic attachment regression coverage.
-- `76c0c5d3681201683e7bc8045e78a8416e011041` — PWA cache v5.
-- First current release run exposed only stale v4 static-gate expectation after product behavior tests passed.
-- `246ba6f6866e665bb03cbb41965d903f3ee2ded2` — static-gate repair and exact current release.
-- GitHub Actions `34268693649` — web SUCCESS + native-core SUCCESS.
-- Render `dep-dag61erncjis738p4hf0` — LIVE.
-- No secrets recorded.
+## REFERENCES
+- [Renderer speech events](https://docs.tavus.io/sections/event-schemas/conversation-started-stopped-speaking)
+- [Renderer interruption](https://docs.tavus.io/sections/event-schemas/conversation-interrupt)
+- [Echo-only media mode](https://docs.tavus.io/sections/conversational-video-interface/echo-mode)
+- [Daily participant/media state](https://docs.daily.co/reference/daily-js/events/participant-events)
+- [Render source-only push marker](https://render.com/docs/deploys#skipping-an-auto-deploy)

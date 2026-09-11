@@ -64,7 +64,7 @@ assert manifest['name'] == 'Lola · eCompanion'
 assert manifest['short_name'] == 'Lola'
 assert manifest['description'] == 'Lola, your private eCompanion.'
 assert 'body surface' not in manifest['description'].lower()
-assert "const CACHE = 'ecompanion-mobile-v7';" in sw
+assert "const CACHE = 'ecompanion-mobile-v8';" in sw
 assert "'./attachments.js'" in sw
 assert 'ecompanion-body-v2' not in sw
 

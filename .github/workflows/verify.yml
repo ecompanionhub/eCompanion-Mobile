@@ -26,9 +26,10 @@ jobs:
           node --check web/app.js
           node --check web/attachments.js
           node --check web/voice.js
+          node --check web/call.js
           node --check web/sw.js
       - name: Multimodal and voice behavior
-        run: node --test test/mobile-attachments.test.mjs test/mobile-voice.test.mjs
+        run: node --test test/*.test.mjs
       - name: Mobile boundary/static gate
         run: python3 tools/mobile_boundary_static_gate.py
 

@@ -5,6 +5,7 @@ import { createVoiceAdapter } from '../web/voice.js';
 
 class FakeRecognition {
   constructor() {
+    FakeRecognition.latest = this;
     this.onstart = null;
     this.onresult = null;
     this.onerror = null;
@@ -80,5 +81,26 @@ test('starting owner speech while Lola is speaking cancels playback before liste
     else globalThis.speechSynthesis = previousSynthesis;
     if (previousUtterance === undefined) delete globalThis.SpeechSynthesisUtterance;
     else globalThis.SpeechSynthesisUtterance = previousUtterance;
+  }
+});
+
+test('switching to Call discards pending dictation instead of sending a parallel chat turn', () => {
+  const previous = globalThis.SpeechRecognition;
+  globalThis.SpeechRecognition = FakeRecognition;
+  const transcripts = [];
+  const states = [];
+  try {
+    const adapter = createVoiceAdapter({ onTranscript: text => transcripts.push(text), onState: state => states.push(state) });
+    adapter.toggleListening();
+    const result = [{ transcript: 'unfinished dictation' }];
+    result.isFinal = true;
+    FakeRecognition.latest.onresult({ resultIndex: 0, results: [result] });
+    adapter.stopListening({ discard: true });
+    assert.deepEqual(transcripts, []);
+    assert.equal(states.at(-1).text, 'Voice ready');
+    assert.equal(adapter.isListening(), false);
+  } finally {
+    if (previous === undefined) delete globalThis.SpeechRecognition;
+    else globalThis.SpeechRecognition = previous;
   }
 });

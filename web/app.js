@@ -30,6 +30,38 @@ const callVideo = $('callVideo');
 const callState = $('callState');
 const callTranscript = $('callTranscript');
 const hangupBtn = $('hangupBtn');
+const chatBtn = $('chatBtn');
+const callChatBtn = $('callChatBtn');
+let callController = null;
+let callDocked = false;
+
+function openChat() {
+  if (callController?.snapshot().active) {
+    callDocked = true;
+    document.body.classList.add('call-docked');
+    document.body.classList.remove('call-open');
+  } else if (!callSurface.hidden) {
+    showChatNotice(callState.textContent);
+    callSurface.hidden = true;
+    document.body.classList.remove('call-open', 'call-docked');
+  }
+  callSurface.setAttribute('role', 'region');
+  callSurface.removeAttribute('aria-modal');
+  chatInput.focus({ preventScroll: true });
+  chatInput.scrollIntoView({ block: 'nearest' });
+}
+
+chatBtn.addEventListener('click', openChat);
+callChatBtn.addEventListener('click', openChat);
+callSurface.addEventListener('keydown', event => {
+  if (event.key === 'Escape') { event.preventDefault(); openChat(); return; }
+  if (event.key !== 'Tab' || callDocked) return;
+  const controls = [...callSurface.querySelectorAll('button:not(:disabled), summary, iframe')];
+  const first = controls[0];
+  const last = controls.at(-1);
+  if (event.shiftKey && document.activeElement === first) { event.preventDefault(); last?.focus(); }
+  else if (!event.shiftKey && document.activeElement === last) { event.preventDefault(); first?.focus(); }
+});
 
 const DEFAULT_RUNTIME = 'https://ecompanion-ene7.onrender.com';
 
@@ -101,7 +133,7 @@ function appendVoiceDraft(transcript) {
 const voiceAdapter = createVoiceAdapter({
   language: navigator.language || 'en-US',
   onTranscript: async (transcript) => {
-    if (turnInFlight) {
+    if (turnInFlight || callController?.snapshot().active) {
       appendVoiceDraft(transcript);
       showChatNotice('I heard you. Your next message is ready to send when this turn finishes.');
       return;
@@ -119,6 +151,9 @@ const voiceAdapter = createVoiceAdapter({
     speakToggle.textContent = speakReplies ? 'Replies on' : 'Replies off';
     speakToggle.setAttribute('aria-pressed', speakReplies ? 'true' : 'false');
     voiceState.textContent = text;
+    voiceState.classList.toggle('sr-only', listening || speaking || text === 'Voice ready');
+    document.body.dataset.voiceSpeaking = String(speaking);
+    document.body.dataset.voiceListening = String(listening);
   }
 });
 
@@ -202,8 +237,8 @@ function renderPairingSurface() {
   setupSection.hidden = paired && !pendingRelinkCode;
   sendBtn.disabled = !paired || turnInFlight;
   attachBtn.disabled = !paired || turnInFlight;
-  voiceBtn.disabled = !paired || !capabilities.speech_recognition;
-  callBtn.disabled = !paired || !capabilities.microphone || !capabilities.webrtc;
+  voiceBtn.disabled = !paired || !capabilities.speech_recognition || Boolean(callController?.snapshot().active);
+  callBtn.disabled = !paired || !capabilities.microphone || !capabilities.webrtc || turnInFlight;
   if (paired) {
     mobileHero.textContent = `${chatTitle.textContent || 'Lola'}, with you.`;
     mobileIntro.textContent = 'Continue the conversation from your phone. Device access stays scoped to this device.';
@@ -307,7 +342,7 @@ async function pairingRequest(code) {
   return parseResponse(response);
 }
 
-async function bodyRequest(path, { method = 'GET', body } = {}) {
+async function bodyRequest(path, { method = 'GET', body, signal } = {}) {
   const token = currentToken();
   if (!token) throw new Error('Connect this phone to eCompanion first.');
   const response = await fetch(`${runtimeBase()}${path}`, {
@@ -317,6 +352,7 @@ async function bodyRequest(path, { method = 'GET', body } = {}) {
       ...(body ? { 'content-type': 'application/json' } : {})
     },
     body: body ? JSON.stringify(body) : undefined,
+    signal,
     cache: 'no-store'
   });
   return parseResponse(response);
@@ -333,21 +369,38 @@ function createDailyCallFrame(host) {
   });
 }
 
-let callController = null;
-
 callController = createCallController({
-  request: bodyRequest,
+  request: (path, options = {}) => bodyRequest(path, { ...options, signal: AbortSignal.timeout(20_000) }),
   dailyFactory: createDailyCallFrame,
   videoHost: callVideo,
-  onState: ({ phase, detail, active }) => {
+  onState: ({ phase, detail, active, rendererReady }) => {
+    const wasHidden = callSurface.hidden;
     callState.textContent = detail || phase;
-    callSurface.hidden = !active && phase !== 'ending';
-    document.body.classList.toggle('call-open', active || phase === 'ending');
+    callState.classList.toggle('sr-only', rendererReady && ['listening', 'processing', 'speaking'].includes(phase));
+    callSurface.hidden = !active && phase !== 'ending' && phase !== 'error';
+    if (!active && phase !== 'ending') callDocked = false;
+    document.body.classList.toggle('call-open', !callSurface.hidden && !callDocked);
+    document.body.classList.toggle('call-docked', !callSurface.hidden && callDocked);
+    document.body.classList.toggle('has-call', active);
+    callSurface.setAttribute('role', callDocked ? 'region' : 'dialog');
+    if (!callDocked && !callSurface.hidden) callSurface.setAttribute('aria-modal', 'true');
+    else callSurface.removeAttribute('aria-modal');
+    callSurface.dataset.phase = phase;
+    hangupBtn.textContent = phase === 'error' ? 'Close' : '×';
+    hangupBtn.setAttribute('aria-label', phase === 'error' ? 'Close call error' : 'End Lola call');
+    hangupBtn.disabled = phase === 'ending';
     callBtn.setAttribute('aria-pressed', active ? 'true' : 'false');
+    renderPairingSurface();
+    if (wasHidden && !callSurface.hidden) callChatBtn.focus();
+    if (!wasHidden && callSurface.hidden) callBtn.focus();
+  },
+  onSignal: ({ source, speaking, voiced, available }) => {
+    if (source === 'renderer' && available !== undefined) callSurface.dataset.mediaReady = String(available);
+    if (source === 'renderer' && speaking !== undefined) callSurface.dataset.speaking = String(speaking);
+    if (source === 'microphone') callSurface.dataset.ownerVoiced = String(voiced);
   },
   onTurn: ({ transcript, replyText }) => {
-    callTranscript.textContent = [transcript ? `You: ${transcript}` : '', replyText ? `Lola: ${replyText}` : ''].filter(Boolean).join('
-');
+    callTranscript.textContent = [transcript ? `You: ${transcript}` : '', replyText ? `Lola: ${replyText}` : ''].filter(Boolean).join('\n');
   }
 });
 
@@ -459,7 +512,9 @@ function renderPendingTurn(content, attachments = []) {
   const pending = document.createElement('div');
   pending.className = 'bubble system';
   pending.dataset.pending = 'true';
-  pending.textContent = attachments.length ? 'Lola is looking at what you sent…' : 'Lola is responding…';
+  pending.textContent = '•••';
+  pending.setAttribute('role', 'status');
+  pending.setAttribute('aria-label', 'Waiting for a response');
   messagesEl.append(user, pending);
   messagesEl.scrollTop = messagesEl.scrollHeight;
 }
@@ -540,6 +595,7 @@ async function refreshSelf() {
 }
 
 async function sendChatContent(value, { clearInput = false } = {}) {
+  if (callController?.snapshot().active) throw new Error('Your call is still open. End the call to send this message; your draft stays here.');
   if (turnInFlight) throw new Error('Lola is still answering this turn. Your next message can stay in the composer.');
   const text = String(value || '').trim();
   const files = [...selectedFiles];
@@ -669,7 +725,16 @@ callBtn.addEventListener('click', async () => {
     renderChatError(new Error('Connect this phone before calling Lola.'));
     return;
   }
-  voiceAdapter.stopListening();
+  callDocked = false;
+  document.body.classList.remove('call-docked');
+  if (callController.snapshot().active) {
+    document.body.classList.add('call-open');
+    callSurface.setAttribute('role', 'dialog');
+    callSurface.setAttribute('aria-modal', 'true');
+    callChatBtn.focus();
+    return;
+  }
+  voiceAdapter.stopListening({ discard: true });
   voiceAdapter.stopSpeaking();
   callTranscript.textContent = '';
   try {
@@ -682,6 +747,12 @@ callBtn.addEventListener('click', async () => {
 hangupBtn.addEventListener('click', async () => {
   await callController.hangup().catch(error => show({ ok: false, error: error.message }));
   callVideo.replaceChildren();
+  if (!callController.snapshot().active && callController.snapshot().phase === 'error') {
+    showChatNotice(callState.textContent);
+    callSurface.hidden = true;
+    document.body.classList.remove('call-open', 'call-docked');
+    callBtn.focus();
+  }
   await loadChat({ preserveOnError: true }).catch(() => null);
 });
 

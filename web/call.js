@@ -74,7 +74,7 @@ function safeState(value) {
 
 function newestOpenCall(calls) {
   const now = Date.now();
-  return (Array.isArray(calls) ? calls : []).find(call => call?.state !== 'ended' && (!call.expiresAt || Date.parse(call.expiresAt) > now)) || null;
+  return (Array.isArray(calls) ? calls : []).find(call => call?.chatId === 'body' && call.state !== 'ended' && (!call.expiresAt || Date.parse(call.expiresAt) > now)) || null;
 }
 export function createCallController({
   request,
@@ -82,6 +82,7 @@ export function createCallController({
   videoHost,
   onState = () => {},
   onTurn = () => {},
+  onSignal = () => {},
   mediaDevices = globalThis.navigator?.mediaDevices,
   AudioContextCtor = globalThis.AudioContext || globalThis.webkitAudioContext
 } = {}) {
@@ -93,12 +94,30 @@ export function createCallController({
     mediaSource: null, processor: null, silentGain: null,
     pendingPcm: [], sendChain: Promise.resolve(), pollTimer: null,
     pollBusy: false, handledGenerations: new Set(), echoEpoch: 0,
-    interruptPending: false, closed: false
+    interruptPending: false, closed: true, epoch: 0, starting: null, stopping: null,
+    playback: null, playbackTimer: null, rendererReady: false, generationFloor: 0,
+    outputChain: Promise.resolve(), queuedChunks: 0, allocating: null, mediaTimer: null
   };
 
   function publish(phase, detail = '') {
     call.phase = safeState(phase);
-    onState(Object.freeze({ phase: call.phase, detail, active: !['idle', 'ended'].includes(call.phase) }));
+    if (!call.rendererReady && ['listening', 'processing', 'speaking'].includes(call.phase)) detail = 'Waiting for Lola live media';
+    onState(Object.freeze({ phase: call.phase, detail, active: !call.closed, rendererReady: call.rendererReady }));
+  }
+
+  function isCurrent(epoch) { return !call.closed && epoch === call.epoch; }
+
+  function cancelPlayback() {
+    call.echoEpoch += 1;
+    clearTimeout(call.playbackTimer);
+    call.playbackTimer = null;
+    call.playback = null;
+    onSignal({ source: 'renderer', speaking: false });
+  }
+
+  async function fail(error) {
+    if (call.closed) return;
+    await hangup({ phase: 'error', detail: error?.message || 'Call connection failed.' });
   }
 
   function ensureAudioContext() {
@@ -108,13 +127,16 @@ export function createCallController({
   }
   async function recoverSequence() {
     if (!call.sessionId) return;
+    const epoch = call.epoch;
     const current = await request(`/api/v1/body/voice/sessions/${encodeURIComponent(call.sessionId)}`);
+    if (!isCurrent(epoch)) return;
     const next = Number(current?.session?.input?.nextSequence);
     if (Number.isInteger(next) && next > 0) call.sequence = next;
   }
 
   async function sendPcmChunk(samples) {
     if (!call.sessionId || call.closed) return;
+    const epoch = call.epoch;
     const sequence = call.sequence;
     try {
       const result = await request(`/api/v1/body/voice/sessions/${encodeURIComponent(call.sessionId)}/audio-chunks`, {
@@ -122,6 +144,7 @@ export function createCallController({
         body: { sequence, audioBase64: pcm16ToBase64(samples), language: globalThis.navigator?.language || null }
       });
       const next = Number(result?.input?.nextSequence);
+      if (!isCurrent(epoch)) return;
       call.sequence = Number.isInteger(next) && next > sequence ? next : sequence + 1;
     } catch (error) {
       if (Number(error?.status) === 409) {
@@ -133,26 +156,37 @@ export function createCallController({
   }
 
   function enqueuePcm(samples) {
-    call.sendChain = call.sendChain.then(() => sendPcmChunk(samples)).catch(error => publish('error', error.message));
+    // Stop capture on backpressure instead of accumulating stale speech indefinitely.
+    if (call.queuedChunks >= 20) { void fail(new Error('Call connection is too slow. Please reconnect.')); return; }
+    call.queuedChunks += 1;
+    const epoch = call.epoch;
+    call.sendChain = call.sendChain.then(() => isCurrent(epoch) ? sendPcmChunk(samples) : undefined)
+      .catch(error => { if (isCurrent(epoch)) void fail(error); }).finally(() => { if (isCurrent(epoch)) call.queuedChunks -= 1; });
   }
   async function interruptForBargeIn() {
     if (call.interruptPending || !call.sessionId || call.closed) return;
     call.interruptPending = true;
-    call.echoEpoch += 1;
+    const epoch = call.epoch;
+    cancelPlayback();
     try {
+      call.daily?.sendAppMessage({ message_type: 'conversation', event_type: 'conversation.interrupt', conversation_id: call.renderer.sessionId }, '*');
       await request(`/api/v1/body/voice/sessions/${encodeURIComponent(call.sessionId)}/interrupt`, { method: 'POST', body: {} });
-      publish('listening', 'Interrupted · listening');
+      if (isCurrent(epoch)) publish('listening', 'Call connected');
     } catch (error) {
-      publish('error', error.message);
+      if (!isCurrent(epoch)) return;
+      void fail(error);
     } finally {
       call.interruptPending = false;
     }
   }
 
   function consumeMicrophoneBlock(floatSamples, sampleRate) {
+    if (call.closed || !call.rendererReady) return;
     const mono16k = resampleFloat32(floatSamples, sampleRate, INPUT_RATE);
     const pcm = float32ToPcm16(mono16k);
-    if (call.phase === 'speaking' && pcmLooksVoiced(pcm)) void interruptForBargeIn();
+    const voiced = pcmLooksVoiced(pcm);
+    onSignal({ source: 'microphone', voiced });
+    if (call.playback && voiced) void interruptForBargeIn();
     for (const value of pcm) call.pendingPcm.push(value);
     const target = Math.round(INPUT_RATE * INPUT_CHUNK_MS / 1000);
     while (call.pendingPcm.length >= target) {
@@ -161,9 +195,10 @@ export function createCallController({
     }
   }
 
-  async function startMicrophone(stream) {
+  async function startMicrophone(stream, epoch) {
     const context = ensureAudioContext();
     if (context.state === 'suspended') await context.resume();
+    if (!isCurrent(epoch)) return;
     const source = context.createMediaStreamSource(stream);
     const processor = context.createScriptProcessor(2048, 1, 1);
     const silent = context.createGain();
@@ -172,16 +207,15 @@ export function createCallController({
     source.connect(processor); processor.connect(silent); silent.connect(context.destination);
     call.mediaSource = source; call.processor = processor; call.silentGain = silent;
   }
-  async function sendEchoPcm(samples, generation) {
+  async function sendEchoPcm(samples, generation, epoch) {
     if (!call.daily || !call.renderer || !samples.length) return;
-    const epoch = ++call.echoEpoch;
     const perChunk = Math.max(1, Math.floor(ECHO_RATE * ECHO_CHUNK_MS / 1000));
     const inferenceId = `${call.sessionId}:${generation}`;
     for (let offset = 0; offset < samples.length; offset += perChunk) {
       if (call.closed || epoch !== call.echoEpoch) return;
       const chunk = samples.subarray(offset, Math.min(samples.length, offset + perChunk));
       const done = offset + perChunk >= samples.length;
-      call.daily.sendAppMessage({
+      await call.daily.sendAppMessage({
         message_type: 'conversation',
         event_type: 'conversation.echo',
         conversation_id: call.renderer.sessionId,
@@ -200,51 +234,67 @@ export function createCallController({
     return context.decodeAudioData(base64ToArrayBuffer(base64).slice(0));
   }
   async function handleOutput(generation) {
-    if (!Number.isInteger(generation) || generation < 1 || call.handledGenerations.has(generation) || call.closed) return;
+    if (!Number.isInteger(generation) || generation <= call.generationFloor || call.handledGenerations.has(generation) || call.closed) return;
     call.handledGenerations.add(generation);
+    const epoch = call.epoch;
+    const echoEpoch = call.echoEpoch;
     const payload = await request(`/api/v1/body/voice/sessions/${encodeURIComponent(call.sessionId)}/outputs/${generation}`);
+    if (!isCurrent(epoch) || echoEpoch !== call.echoEpoch) return;
     const voice = payload?.output?.voice;
     if (!voice) throw new Error('Runtime returned an invalid call output.');
     onTurn({ generation, transcript: String(voice.transcript || ''), replyText: String(voice.replyText || '') });
     if (voice.interrupted) {
-      publish('listening', 'Listening');
+      publish('listening', 'Call connected');
       return;
     }
     const synthesized = voice.synthesizedAudio;
     if (synthesized?.status !== 'ready' || !synthesized.audioBase64) {
-      await request(`/api/v1/body/voice/sessions/${encodeURIComponent(call.sessionId)}/playback-complete`, { method: 'POST', body: { generation } });
-      publish('error', 'Lola voice is unavailable · no fallback used');
-      return;
+      throw new Error('Lola voice is unavailable. Please reconnect.');
     }
-    publish('speaking', 'Lola is speaking');
     const decoded = await decodeSpeech(synthesized.audioBase64);
+    if (!isCurrent(epoch) || echoEpoch !== call.echoEpoch) return;
+    if (!call.rendererReady) throw new Error('Lola live media is unavailable. Please reconnect.');
     const mono = decoded.getChannelData(0);
     const pcm24 = float32ToPcm16(resampleFloat32(mono, decoded.sampleRate, ECHO_RATE));
-    await sendEchoPcm(pcm24, generation);
-    if (call.closed || call.phase !== 'speaking') return;
-    await request(`/api/v1/body/voice/sessions/${encodeURIComponent(call.sessionId)}/playback-complete`, { method: 'POST', body: { generation } });
-    publish('listening', 'Listening');
+    if (!pcm24.length) throw new Error('Lola returned empty call audio.');
+    cancelPlayback();
+    call.playback = { generation, inferenceId: `${call.sessionId}:${generation}`, started: false, completing: false };
+    // Upload completion is not playback proof. Only the matching renderer event acknowledges it.
+    call.playbackTimer = setTimeout(() => { void fail(new Error('Lola playback could not be confirmed. Please reconnect.')); }, pcm24.length / ECHO_RATE * 1000 + 20_000);
+    await sendEchoPcm(pcm24, generation, call.echoEpoch);
   }
   async function pollEvents() {
     if (call.pollBusy || call.closed || !call.sessionId) return;
     call.pollBusy = true;
+    const epoch = call.epoch;
     try {
       const payload = await request(`/api/v1/body/voice/sessions/${encodeURIComponent(call.sessionId)}/events?afterSequence=${call.eventCursor}&limit=100`);
+      if (!isCurrent(epoch)) return;
       for (const event of payload?.events || []) {
+        if (!isCurrent(epoch)) break;
         call.eventCursor = Math.max(call.eventCursor, Number(event.sequence || 0));
         const generation = Number(event?.payload?.generation || 0);
-        if (event.type === 'turn.processing') publish('processing', 'Lola is thinking');
-        else if (event.type === 'turn.speaking') publish('processing', 'Preparing Lola voice');
-        else if (event.type === 'turn.output_ready') await handleOutput(generation);
-        else if (event.type === 'turn.interrupted') { call.echoEpoch += 1; publish('listening', 'Listening'); }
-        else if (event.type === 'turn.discarded') publish('error', String(event?.payload?.error || 'Call turn failed'));
-        else if (event.type === 'session.ended') publish('ended', 'Call ended');
+        if (generation && generation <= call.generationFloor) continue;
+        if (event.type === 'turn.processing' || event.type === 'turn.speaking') publish('processing', 'Call connected');
+        else if (event.type === 'turn.output_ready') {
+          call.outputChain = call.outputChain.then(() => isCurrent(epoch) ? handleOutput(generation) : undefined).catch(error => { if (isCurrent(epoch)) void fail(error); });
+        }
+        else if (event.type === 'turn.interrupted') {
+          call.generationFloor = Math.max(call.generationFloor, generation);
+          cancelPlayback();
+          call.daily?.sendAppMessage({ message_type: 'conversation', event_type: 'conversation.interrupt', conversation_id: call.renderer.sessionId }, '*');
+          publish('listening', 'Call connected');
+        }
+        else if (event.type === 'turn.discarded') { void fail(new Error('This call turn could not be completed. Please reconnect.')); break; }
+        else if (event.type === 'session.ended') { void hangup({ remoteEnded: true }); break; }
       }
     } catch (error) {
-      if (!call.closed) publish('error', error.message);
+      if (isCurrent(epoch)) void fail(error);
     } finally {
-      call.pollBusy = false;
-      if (!call.closed && call.sessionId) call.pollTimer = setTimeout(pollEvents, 300);
+      if (isCurrent(epoch)) {
+        call.pollBusy = false;
+        if (call.sessionId) call.pollTimer = setTimeout(pollEvents, 300);
+      }
     }
   }
 
@@ -253,25 +303,71 @@ export function createCallController({
     call.pollTimer = null;
   }
   async function joinRenderer(renderer) {
-    if (renderer?.protocol !== 'daily' || !renderer?.joinUrl || !renderer?.joinToken || !renderer?.sessionId) {
+    if (renderer?.protocol !== 'daily' || renderer?.echo !== true || !renderer?.joinUrl || !renderer?.joinToken || !renderer?.sessionId) {
       throw new Error('Live Lola video is not configured correctly.');
     }
     call.renderer = renderer;
     const daily = dailyFactory(videoHost, renderer);
-    if (!daily || typeof daily.join !== 'function' || typeof daily.sendAppMessage !== 'function') {
+    if (!daily || typeof daily.join !== 'function' || typeof daily.sendAppMessage !== 'function' || typeof daily.on !== 'function') {
       throw new Error('Live video transport is unavailable.');
     }
     call.daily = daily;
+    const epoch = call.epoch;
+    const updateMedia = () => {
+      if (!isCurrent(epoch)) return;
+      const remote = Object.values(daily.participants()).filter(participant => !participant.local);
+      const ready = remote.some(participant => participant.tracks?.video?.state === 'playable' && participant.tracks?.audio?.state === 'playable');
+      const wasReady = call.rendererReady;
+      call.rendererReady = ready;
+      if (ready) { clearTimeout(call.mediaTimer); call.mediaTimer = null; }
+      onSignal({ source: 'renderer', available: ready });
+      if (!ready && wasReady) { void fail(new Error('Lola live media disconnected. Please reconnect.')); return; }
+      if (ready && call.phase === 'connecting') publish('listening', 'Call connected');
+    };
+    daily.on('participant-joined', updateMedia);
+    daily.on('participant-updated', updateMedia);
+    daily.on('participant-left', updateMedia);
+    daily.on('app-message', event => { if (isCurrent(epoch)) void rendererMessage(event).catch(error => { void fail(error); }); });
+    daily.on('error', () => { if (isCurrent(epoch)) void fail(new Error('Live call connection failed. Please reconnect.')); });
+    daily.on('left-meeting', () => { if (isCurrent(epoch)) void fail(new Error('Live call disconnected. Please reconnect.')); });
     await daily.join({
       url: renderer.joinUrl,
       token: renderer.joinToken,
       startAudioOff: true,
       startVideoOff: true
     });
+    updateMedia();
   }
 
-  async function resolveSession() {
+  async function rendererMessage(event) {
+    const data = event?.data;
+    const playback = call.playback;
+    const sender = call.daily?.participants?.()[event?.fromId];
+    if (!sender || sender.local || !playback || !call.rendererReady || data?.message_type !== 'conversation'
+      || (data.conversation_id && data.conversation_id !== call.renderer.sessionId)
+      || data.inference_id !== playback.inferenceId) return;
+    const replica = data.properties?.role === 'replica';
+    const started = data.event_type === 'conversation.replica.started_speaking' || (replica && data.event_type === 'conversation.started_speaking');
+    const stopped = data.event_type === 'conversation.replica.stopped_speaking' || (replica && data.event_type === 'conversation.stopped_speaking');
+    if (started && !playback.completing) {
+      playback.started = true;
+      onSignal({ source: 'renderer', speaking: true });
+      publish('speaking', 'Call connected');
+    }
+    if (!stopped || !playback.started || playback.completing) return;
+    playback.completing = true;
+    if (data.properties?.interrupted) { await interruptForBargeIn(); return; }
+    clearTimeout(call.playbackTimer);
+    const epoch = call.epoch;
+    await request(`/api/v1/body/voice/sessions/${encodeURIComponent(call.sessionId)}/playback-complete`, { method: 'POST', body: { generation: playback.generation } });
+    if (!isCurrent(epoch) || call.playback !== playback) return;
+    cancelPlayback();
+    publish('listening', 'Call connected');
+  }
+
+  async function resolveSession(epoch) {
     const callsPayload = await request('/api/v1/body/calls');
+    if (!isCurrent(epoch)) return null;
     const existing = newestOpenCall(callsPayload?.calls);
     if (existing?.id) {
       const current = await request(`/api/v1/body/voice/sessions/${encodeURIComponent(existing.id)}`);
@@ -280,62 +376,115 @@ export function createCallController({
     const created = await request('/api/v1/body/voice/sessions', { method: 'POST', body: {} });
     return created?.session || null;
   }
-  async function start() {
-    if (!['idle', 'ended', 'error'].includes(call.phase)) return;
+  function start() {
+    if (call.starting) return call.starting;
+    if (call.stopping || !call.closed) return Promise.resolve();
+    call.starting = startSession().finally(() => { call.starting = null; });
+    return call.starting;
+  }
+  async function startSession() {
     call.closed = false;
+    const epoch = ++call.epoch;
+    call.handledGenerations.clear();
+    call.generationFloor = 0;
+    call.pollBusy = false;
+    call.sendChain = Promise.resolve();
+    call.outputChain = Promise.resolve();
+    call.queuedChunks = 0;
+    call.interruptPending = false;
     publish('connecting', 'Connecting Lola');
     let stream = null;
+    const cancelled = () => !isCurrent(epoch);
     try {
+      // Unlock iPhone audio while still in the owner's Call gesture.
+      const context = ensureAudioContext();
+      if (context.state === 'suspended') await context.resume();
+      if (cancelled()) return;
       const policy = await request('/api/v1/body/voice/policy');
+      if (cancelled()) return;
       const input = policy?.voice?.input;
       if (!policy?.voice?.configured || input?.encoding !== 'pcm_s16le' || input?.sampleRate !== INPUT_RATE || input?.channels !== 1) {
         throw new Error('Runtime live voice contract is unavailable.');
       }
       if (!mediaDevices?.getUserMedia) throw new Error('Microphone access is unavailable on this device.');
       stream = await mediaDevices.getUserMedia({ audio: { echoCancellation: true, noiseSuppression: true, autoGainControl: true }, video: false });
+      if (cancelled()) { stream.getTracks().forEach(track => track.stop()); return; }
       call.stream = stream;
-      const session = await resolveSession();
+      for (const track of stream.getTracks()) track.addEventListener?.('ended', () => {
+        if (isCurrent(epoch)) void fail(new Error('Microphone disconnected. Please reconnect.'));
+      }, { once: true });
+      call.allocating = { kind: 'session', promise: resolveSession(epoch) };
+      const session = await call.allocating.promise;
+      call.allocating = null;
+      if (cancelled()) return;
       if (!session?.id) throw new Error('Runtime did not create or resume a call session.');
       call.sessionId = session.id; call.callId = session.callId || null;
       call.sequence = Number(session?.input?.nextSequence || 1); call.eventCursor = 0;
-      const rendererPayload = await request(`/api/v1/body/voice/sessions/${encodeURIComponent(call.sessionId)}/renderer`, { method: 'POST', body: {} });
+      call.generationFloor = Math.max(0, Number(session.generation || 0) - (['processing', 'speaking'].includes(session.state) ? 1 : 0));
+      call.allocating = { kind: 'renderer', promise: request(`/api/v1/body/voice/sessions/${encodeURIComponent(call.sessionId)}/renderer`, { method: 'POST', body: {} }) };
+      const rendererPayload = await call.allocating.promise;
+      call.allocating = null;
+      if (cancelled()) return;
       await joinRenderer(rendererPayload?.renderer);
-      await startMicrophone(stream);
-      publish('listening', 'Listening');
+      if (cancelled()) return;
+      await startMicrophone(stream, epoch);
+      if (cancelled()) return;
+      if (!call.rendererReady) call.mediaTimer = setTimeout(() => { void fail(new Error('Lola live media did not arrive. Please reconnect.')); }, 20_000);
+      publish(call.rendererReady ? 'listening' : 'connecting', call.rendererReady ? 'Call connected' : 'Waiting for Lola live media');
       void pollEvents();
     } catch (error) {
       stream?.getTracks?.().forEach(track => track.stop());
-      if (call.sessionId) await request(`/api/v1/body/voice/sessions/${encodeURIComponent(call.sessionId)}`, { method: 'DELETE' }).catch(() => null);
-      publish('error', error.message);
+      if (cancelled()) return;
+      await fail(error);
       throw error;
     }
   }
-  async function hangup() {
+  function hangup(options = {}) {
+    if (call.stopping) return call.stopping;
+    call.stopping = closeSession(options).finally(() => { call.stopping = null; });
+    return call.stopping;
+  }
+  async function closeSession({ phase = 'ended', detail = '', remoteEnded = false } = {}) {
     if (call.closed || call.phase === 'idle') return;
     publish('ending', 'Ending call');
-    call.closed = true; call.echoEpoch += 1; stopPoll();
+    call.closed = true; call.epoch += 1; cancelPlayback(); stopPoll();
+    clearTimeout(call.mediaTimer); call.mediaTimer = null;
+    const allocating = call.allocating;
+    call.rendererReady = false;
+    onSignal({ source: 'renderer', available: false });
+    onSignal({ source: 'microphone', voiced: false });
     if (call.processor) call.processor.onaudioprocess = null;
     for (const node of [call.mediaSource, call.processor, call.silentGain]) {
       try { node?.disconnect?.(); } catch {}
     }
     call.stream?.getTracks?.().forEach(track => track.stop());
-    try { await call.sendChain; } catch {}
     try { await call.daily?.leave?.(); } catch {}
     try { await call.daily?.destroy?.(); } catch {}
+    // Let an in-flight allocation resolve before deleting its canonical session.
+    // Local capture is already stopped; a late renderer must not outlive its cleanup.
+    let allocationFailed = false;
+    if (allocating) {
+      try {
+        const allocated = await allocating.promise;
+        if (allocating.kind === 'session' && allocated?.id) call.sessionId = allocated.id;
+      } catch { allocationFailed = true; }
+      call.allocating = null;
+    }
     let ended = null;
-    if (call.sessionId) {
+    if (call.sessionId && !remoteEnded) {
       ended = await request(`/api/v1/body/voice/sessions/${encodeURIComponent(call.sessionId)}`, { method: 'DELETE' }).catch(error => ({ ok: false, error: error.message }));
     }
     try { await call.audioContext?.close?.(); } catch {}
     call.stream = null; call.audioContext = null; call.daily = null; call.renderer = null;
     call.mediaSource = null; call.processor = null; call.silentGain = null;
     call.pendingPcm = []; call.sessionId = null; call.callId = null; call.eventCursor = 0;
-    publish('ended', ended?.ok === false ? `Call ended locally · ${ended.error}` : 'Call ended');
+    const uncertain = allocationFailed || ended?.ok === false || ended?.renderer?.cleanupRequired === true;
+    publish(uncertain ? 'error' : phase, uncertain ? 'Call stopped on this phone. Remote cleanup could not be confirmed.' : detail || 'Call ended');
     return ended;
   }
 
   function snapshot() {
-    return Object.freeze({ phase: call.phase, active: !['idle', 'ended'].includes(call.phase), sessionId: call.sessionId, callId: call.callId, nextSequence: call.sequence });
+    return Object.freeze({ phase: call.phase, active: !call.closed, rendererReady: call.rendererReady, sessionId: call.sessionId, callId: call.callId, nextSequence: call.sequence });
   }
 
   return Object.freeze({ start, hangup, snapshot, interrupt: interruptForBargeIn });
