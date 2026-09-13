@@ -39,7 +39,7 @@
   },
   "voice": {
     "input_adapter": "runtime_voice_pcm16_16khz",
-    "output_adapter": "elevenlabs_voice_via_runtime_integrations",
+    "output_adapter": "runtime_canonical_voice_audio",
     "paid_provider_required": false,
     "runtime_chat_authority": "unchanged",
     "transcript_transport": "runtime_voice_session_to_canonical_conversation",

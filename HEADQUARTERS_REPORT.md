@@ -1,5 +1,24 @@
 # HEADQUARTERS REPORT
 
+## PRIVATE LOLA AUDIO CALL — CURRENT LANE 2026-09-13
+Owner: Iris / Mobile consumption. Preserved the existing dirty boundary change: voice output adapter is `runtime_canonical_voice_audio`. Mobile remains engine-neutral and consumes canonical Runtime audio; Devices owns local synthesis, Runtime owns authorization and call/conversation truth.
+
+IMPLEMENTED and TESTED: workflow policy and Mobile boundary/static gates passed; all 26 browser behavior tests passed, including same-frame Chat/Call continuity, matching playback acknowledgment, barge-in, late-event suppression, failure cleanup and private/Social session separation. No native source changed; no new Swift build or iPhone proof is claimed.
+
+DEPLOYED: NO for this lane. TARGET VERIFIED: NO. END-TO-END PROVEN: NO. No push, deployment or installation performed.
+
+## CROSS-PROJECT CHANGES
+- Changed by Iris / Mobile consumption; change type: engine-neutral boundary declaration; proof: IMPLEMENTED and TESTED.
+- Runtime/Devices REQUIRED: coordinated later authorized rollout of signed local synthesis and bounded canonical audio result transport. Mobile NO ACTION for synthesis engine selection; it consumes the existing audio contract.
+- Compatibility: BACKWARD COMPATIBLE consumer declaration. Rollout dependency: exact configured owner-bound NODE plus Runtime private voice authorization and fresh capability advertisement.
+- Do not add a client synthesis fallback, expose private NODE authority to Social, or report upload/ACK as audible playback.
+- Evidence: `ECOMPANION_MOBILE_BOUNDARIES.json`, `node --test test/*.test.mjs` (26 passed), both Python gates.
+
+## REMAINING AUDIO CALL BOUNDARY
+After separately authorized activation, prove the real iPhone session plays local NODE audio, stops audible output on barge-in, suppresses late generations and preserves the same conversation/call through Chat/Call switching and reconnect. Current tests provide internal behavior proof only. Actual installed voice, renderer delivery, iPhone audio activation and interruption latency remain physical acceptance work.
+
+## HISTORICAL REPORT (NOT CURRENT AUDIO LANE PROOF)
+
 ## CURRENT
 Updated: 2026-09-11
 Engineer: Iris / Mobile Interfaces implementation worker
