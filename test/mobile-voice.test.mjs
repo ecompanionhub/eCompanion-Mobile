@@ -104,3 +104,46 @@ test('switching to Call discards pending dictation instead of sending a parallel
     else globalThis.SpeechRecognition = previous;
   }
 });
+
+test('voice conversation automatically listens again after Lola finishes speaking', async () => {
+  const previousRecognition = globalThis.SpeechRecognition;
+  const previousSynthesis = globalThis.speechSynthesis;
+  const previousUtterance = globalThis.SpeechSynthesisUtterance;
+  let activeUtterance = null;
+  const transcripts = [];
+  globalThis.SpeechRecognition = FakeRecognition;
+  globalThis.SpeechSynthesisUtterance = FakeUtterance;
+  globalThis.speechSynthesis = {
+    cancel() { activeUtterance = null; },
+    speak(utterance) { activeUtterance = utterance; utterance.onstart?.(); }
+  };
+  try {
+    let adapter;
+    adapter = createVoiceAdapter({
+      onTranscript: async text => { transcripts.push(text); adapter.speak('Lola reply'); }
+    });
+    adapter.toggleListening();
+    const firstRecognition = FakeRecognition.latest;
+    const result = [{ transcript: 'hello Lola' }];
+    result.isFinal = true;
+    firstRecognition.onresult({ resultIndex: 0, results: [result] });
+    firstRecognition.onend();
+    await new Promise(resolve => setTimeout(resolve, 0));
+    assert.equal(adapter.isSpeaking(), true);
+    assert.deepEqual(transcripts, ['hello Lola']);
+    const spoken = activeUtterance;
+    assert.ok(spoken, 'Lola reply should be queued for speech');
+    spoken.onend();
+    await new Promise(resolve => setTimeout(resolve, 180));
+    assert.notEqual(FakeRecognition.latest, firstRecognition);
+    assert.equal(adapter.isListening(), true);
+    adapter.stopListening({ discard: true });
+  } finally {
+    if (previousRecognition === undefined) delete globalThis.SpeechRecognition;
+    else globalThis.SpeechRecognition = previousRecognition;
+    if (previousSynthesis === undefined) delete globalThis.speechSynthesis;
+    else globalThis.speechSynthesis = previousSynthesis;
+    if (previousUtterance === undefined) delete globalThis.SpeechSynthesisUtterance;
+    else globalThis.SpeechSynthesisUtterance = previousUtterance;
+  }
+});
